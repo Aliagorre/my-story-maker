@@ -1,0 +1,12 @@
+{
+  "name": "La Forêt Maudite",
+  "description": "Une courte aventure d'introduction.",
+  "depends": ["player", "random","conditions"],
+  "version": "1.0.3",
+  "active": true,
+  "variables": 
+  {
+    "visited_clearing": false,
+    "has_sword": false
+  }
+}

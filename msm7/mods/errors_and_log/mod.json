@@ -1,0 +1,8 @@
+{
+  "name": "error_and_log",
+  "depends": ["styled_text"],
+  "version": "1.0.0",
+  "active" : true,
+  "description": "Interprete et affiche les warnig, error et log",
+  "type": "system"
+}

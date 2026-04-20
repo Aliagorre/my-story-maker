@@ -1,0 +1,8 @@
+{
+  "name": "ui_simple",
+  "depends": ["ui_core"],
+  "version": "1.0.3",
+  "active": true,
+  "description": "Interface curses — terminal graphique",
+  "type": "interface"
+}

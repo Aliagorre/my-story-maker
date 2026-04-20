@@ -1,0 +1,11 @@
+{
+  "name": "intentory",
+  "depends": ["items"],
+  "version": "1.0.4",
+  "active" : true,
+  "description": "Inventaire simple basé sur les items.",
+  "type": "gameplay",
+  "variables": {
+    "inventory": []
+  }
+}

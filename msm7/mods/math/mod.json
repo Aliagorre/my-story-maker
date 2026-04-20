@@ -1,0 +1,8 @@
+{
+  "name": "math",
+  "depends": [],
+  "description": "Opérateurs mathématiques et logiques pour le ConditionEngine",
+  "version": "1.0.0",
+  "type": "operator",
+  "active": true
+}

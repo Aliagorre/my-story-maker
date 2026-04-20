@@ -1,0 +1,13 @@
+{
+  "name": "La croix verte",
+  "description": "Une démonstration du créateur d'aventure",
+  "depends": [
+    "math",
+    "player",
+    "random",
+    "conditions"
+  ],
+  "version": "1.0.0",
+  "active": true,
+  "variables": {}
+}

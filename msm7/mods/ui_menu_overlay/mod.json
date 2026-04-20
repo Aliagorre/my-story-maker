@@ -1,0 +1,8 @@
+{
+  "name": "ui_menu_overlay",
+  "depends": ["ui_simple"],
+  "version": "1.0.0",
+  "active": true,
+  "description": "Menus pygame — pause, aventures, sauvegardes",
+  "type": "interface"
+}

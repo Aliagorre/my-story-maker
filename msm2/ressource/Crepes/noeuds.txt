@@ -1,0 +1,1 @@
+{'Noyau': {'identifiant': 'Noyau', 'texte': "Vous êtes cuisinier. C'est la chandelleur.\nC'est le matin, il est 6H00, votre réveil sonne.", 'option': '__Option__', 'condition': 'True', 'effet': 'None'}}

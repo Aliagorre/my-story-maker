@@ -1,0 +1,8 @@
+{
+  "name": "adventure_editor",
+  "depends": ["styled_text", "cmd"],
+  "description": "Éditeur d'aventures CLI",
+  "version": "1.0.0",
+  "type": "editor", 
+  "active": true
+}

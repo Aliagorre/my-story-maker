@@ -1,0 +1,9 @@
+{
+  "name": "items",
+  "version": "1.0.2",
+  "description": "Définit des types d'items simples.",
+  "active": true,
+  "variables": {},
+  "type": "gameplay",
+  "depends": []
+}

@@ -1,0 +1,1 @@
+{'Masèrne': 0, 'Royaume_de_Lopes': 0, 'objectif_1': 0, 'Empire_d_Alganie': 0, 'aide_joueur': 0, 'Famille_royal_de_Lopes': 0}

@@ -1,0 +1,8 @@
+{
+  "name": "styled_text_cmd",
+  "depends": ["styled_text", "cmd"],
+  "description" : "Ajoute des commandes cmd pour modifier le style",
+  "version": "1.0.0",
+  "active": true,
+  "type" : "system"
+}

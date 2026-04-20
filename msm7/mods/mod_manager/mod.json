@@ -1,0 +1,8 @@
+{
+  "name": "mod_manager",
+  "depends": ["styled_text", "cmd"],
+  "description": "Gestion des mods : liste, activation, rechargement",
+  "version": "1.0.0",
+  "type": "system",
+  "active": true
+}

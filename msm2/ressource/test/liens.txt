@@ -1,0 +1,1 @@
+{'Noyau': ['test_p1', 'test_np1', 'test_p2'], 'test_p1': [], 'test_np1': ['impossible_01'], 'impossible_01': [], 'test_p2': ['stest_p1'], 'stest_p1': ['test_p1']}

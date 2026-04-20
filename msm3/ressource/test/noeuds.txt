@@ -1,0 +1,1 @@
+{'Noyau': ['__Texte__', '__Option__', 'True'], 'test_01': ['Le test fonctionna, allez vérifier dans le menu débogage', 'faire un test possible', '1==1'], 'test_11': ['Trop cool', 'un sous test possible', 'True'], 'test_02': ["Si vous voyez ce texte c'est qu'il y a un probleme", 'Faire un test impossible', '1==2'], 'noyau': ['bonbonbon', 'achec de test circulaire', '1==1']}
