@@ -1,40 +1,65 @@
-from core.node import *
+# core/graph.py
+from core.errors import EngineError
+from core.context import Context
+from typing import Dict, Any, List
 
 class Graph:
-    def __init__(self) -> None:
-        self.root        :str = ""
-        self.active_node :str = ""
-        self.links       :dict[str,list[str]] = {}
-        self.retro_links :dict[str,list[str]] = {}
-        self.nodes       :dict[str,Node]      = {}
+    def __init__(self, data: Dict[str, Any]):
+        if "nodes" not in data:
+            raise EngineError("Graph data is missing 'nodes' key")
 
-    def active_node_obj(self) -> Node :
-        return self.nodes[self.active_node]
+        seen = {}
+        for n in data["nodes"]:
+            if n["id"] in seen:
+                raise EngineError(f"Duplicate node id '{n['id']}'")
+            seen[n["id"]] = n
 
-    def init_nodes(self,node_dict:dict[str,dict[str,Any]]) -> None :
-        for node_key in node_dict :
-            working_node = Node()
-            working_node.init_node(node_dict[node_key])
-            self.nodes[node_key] = working_node
-    
-    def nodes_data(self) -> dict[str,dict[str,Any]] :
-        dict_data = {}
-        for node_key in self.nodes :
-            dict_data[node_key] = self.nodes[node_key].node_dict()
-        return dict_data
-    
-    def option(self,story:NoneFunc=none,other_choice:list[str]=[]) -> str :
-        neighbor_nodes_key = self.links[self.active_node]
-        neighbor_nodes     = [self.nodes[key] for key in neighbor_nodes_key]
-        accessible_nodes   = [node for node in neighbor_nodes if node.active()]
-        labels_nodes       = [node.label for node in accessible_nodes]
-        choice = while_input(labels_nodes + other_choice + ["Retour au menu"],
-                             "> Choissisez votre voie\n> ",
-                             "> Choissisez une voie correcte\n> ",
-                             "# --- Un embranchement vous fait face --- #",[],story)
-        return choice
+        self.nodes = seen
+        self.validate()
 
-    def debug(self) -> None :
-        clear_screen()
-        print("Not implemented")
-        input()
+    def get_node(self, node_id: str) -> Dict[str, Any]:
+        if node_id not in self.nodes:
+            raise EngineError(f"Node '{node_id}' not found")
+        return self.nodes[node_id]
+
+    def get_choices(self, node: Dict[str, Any] | None, context: Context) -> List[Dict[str, Any]]:
+        if node is None:
+            raise EngineError("Cannot get choices: node is None")
+        if not hasattr(context, "condition_engine"):
+            raise EngineError("Invalid context: missing condition_engine")
+        result = []
+        for c in node.get("choices", []):
+            cond = c.get("conditions")
+            if cond is None or context.condition_engine.evaluate(cond):
+                if "goto" not in c:
+                    raise EngineError(f"Choice in node '{node['id']}' missing 'goto'")
+                result.append(c)
+        return result
+
+    def find_choice_by_id(self, node: Dict[str, Any] | None, choice_id: str, context: Context) -> Dict[str, Any]:
+        if node is None:
+            raise EngineError("Cannot find choice: node is None")
+        for c in self.get_choices(node, context):
+            if "id" not in c:
+                raise EngineError(f"Choice in node '{node['id']}' missing 'id'")
+            if c["id"] == choice_id:
+                return c
+        raise EngineError(f"Choice id '{choice_id}' not available in current node")
+
+    def validate(self):
+        if not self.nodes:
+            raise EngineError("Graph has no nodes")
+        for node_id, node in self.nodes.items():
+            if "text" not in node:
+                raise EngineError(f"Node '{node_id}' missing 'text'")
+            if "id" not in node:
+                raise EngineError(f"Node '{node_id}' missing 'id'")
+            for c in node.get("choices", []):
+                if "text" not in c:
+                    raise EngineError(f"Choice in node '{node_id}' missing 'text'")
+                if "goto" not in c:
+                    raise EngineError(f"Choice in node '{node_id}' missing 'goto'")
+                if "id" not in c:
+                    raise EngineError(f"Choice in node '{node_id}' missing 'id'")
+                if c["goto"] not in self.nodes:
+                    raise EngineError(f"Choice in node '{node_id}' points to unknown node '{c['goto']}'")
