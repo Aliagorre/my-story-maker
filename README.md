@@ -1,4 +1,4 @@
-# my-story-maker
+\# my-story-maker/README.md
 
 # **StoryMaker V7 — Development Guidelines**
 

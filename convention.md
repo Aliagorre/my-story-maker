@@ -1,4 +1,4 @@
-\# my-story-maker
+\# my-story-maker/convention.md
 
 # **0.2 — Conventions Definition (Official Guideline)**
 
