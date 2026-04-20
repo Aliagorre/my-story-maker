@@ -1,6 +1,6 @@
 \# my-story-maker/convention.md
 
-## Objective
+## 1. StoryMaker V7 - Objective
 
 Define the standards governing:
 
@@ -19,9 +19,9 @@ These conventions are **mandatory** across the entire project.
 
 ---
 
-# **1) Naming Conventions**
+# **2) Naming Conventions**
 
-## 1.1 — Mod Names
+## 2.1 — Mod Names
 
 Strict format:
 
@@ -41,7 +41,7 @@ Default mods are located in `/mods/default/`.
 
 ---
 
-## 1.2 — Python File Names
+## 2.2 — Python File Names
 
 * Use `snake_case`
 * One file = one clear responsibility
@@ -54,7 +54,7 @@ Examples:
 
 ---
 
-## 1.3 — Class Names
+## 2.3 — Class Names
 
 * Use `PascalCase`
 
@@ -66,7 +66,7 @@ Examples:
 
 ---
 
-## 1.4 — Functions and Methods
+## 2.4 — Functions and Methods
 
 * Use `snake_case`
 * Prefer explicit verbs
@@ -79,7 +79,7 @@ Examples:
 
 ---
 
-## 1.5 — Event Names
+## 2.5 — Event Names
 
 Strict format:
 
@@ -100,9 +100,9 @@ Examples:
 
 ---
 
-# **2) Project Structure Conventions**
+# **3) Project Structure Conventions**
 
-## 2.1 — General Layout
+## 3.1 — General Layout
 
 ```
 /
@@ -128,7 +128,7 @@ Examples:
 
 ---
 
-# **3) Manifest Conventions**
+# **4) Manifest Conventions**
 
 Each mod must include:
 
@@ -162,7 +162,7 @@ manifest.json
 
 ---
 
-## 3.1 — Mod Types
+## 4.1 — Mod Types
 
 * `core_engine` → reserved for the core (rare)
 * `core_default` → essential built-in mods
@@ -171,7 +171,7 @@ manifest.json
 
 ---
 
-## 3.2 — Versioning
+## 4.2 — Versioning
 
 * Strict **Semantic Versioning (SemVer)**: `MAJOR.MINOR.PATCH`
 
@@ -183,9 +183,9 @@ Rules:
 
 ---
 
-# **4) Event Conventions**
+# **5) Event Conventions**
 
-## 4.1 — Event Structure
+## 5.1 — Event Structure
 
 An event is a dictionary:
 
@@ -200,7 +200,7 @@ An event is a dictionary:
 
 ---
 
-## 4.2 — Rules
+## 5.2 — Rules
 
 * `name` is required
 * `source` = mod or core
@@ -209,7 +209,7 @@ An event is a dictionary:
 
 ---
 
-## 4.3 — Event Categories
+## 5.3 — Event Categories
 
 * `ENGINE_*`
 * `MOD_*`
@@ -220,9 +220,9 @@ An event is a dictionary:
 
 ---
 
-# **5) Logging Conventions**
+# **6) Logging Conventions**
 
-## 5.1 — Levels
+## 6.1 — Levels
 
 * `DEBUG`
 * `INFO`
@@ -232,7 +232,7 @@ An event is a dictionary:
 
 ---
 
-## 5.2 — Minimal Format
+## 6.2 — Minimal Format
 
 ```
 [LEVEL] [timestamp] [source] message
@@ -246,16 +246,16 @@ Example:
 
 ---
 
-## 5.3 — Styling Rules
+## 6.3 — Styling Rules
 
 * No styling in the core
 * Styling is handled by `mod_styled_text`
 
 ---
 
-# **6) Permission Conventions**
+# **7) Permission Conventions**
 
-## 6.1 — Available Permissions
+## 7.1 — Available Permissions
 
 * `filesystem_read`
 * `filesystem_write`
@@ -267,7 +267,7 @@ Example:
 
 ---
 
-## 6.2 — Rules
+## 7.2 — Rules
 
 * Dev mode: all permissions allowed
 * Safe mode: restrictions may apply
@@ -275,9 +275,9 @@ Example:
 
 ---
 
-# **7) Documentation Conventions**
+# **8) Documentation Conventions**
 
-## 7.1 — Each Mod Must Include:
+## 8.1 — Each Mod Must Include:
 
 * `README.md`
 * `manifest.json`
@@ -287,7 +287,7 @@ Example:
 
 ---
 
-## 7.2 — Core Documentation Must Include:
+## 8.2 — Core Documentation Must Include:
 
 * `API.md`
 * `EVENTS.md`
@@ -296,7 +296,7 @@ Example:
 
 ---
 
-# **8) Quality Standards**
+# **9) Quality Standards**
 
 * No dead code
 * No `print` statements in the core
