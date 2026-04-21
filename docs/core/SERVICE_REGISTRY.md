@@ -255,6 +255,3 @@ The Service Registry is:
 * stable,
 * strict,
 * essential for engine modularity.
-
-```
-```
