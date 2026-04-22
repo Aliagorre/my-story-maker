@@ -1,4 +1,4 @@
-\# my-story-maker/docs/mods/MOD_LYFECYCLE.md
+\# my-story-maker/docs/mods/MOD_LIFECYCLE.md
 
 # StoryMaker V7 — Mod Lifecycle
 
@@ -127,6 +127,8 @@ Immediately after the event:
 ENGINE_READY
 ```
 
+Mods subscribe to this event during `on_load` to register their `on_ready` callback.
+
 ### Recommended usage
 
 * Start user interfaces.
@@ -142,6 +144,9 @@ ENGINE_READY
 ### Example
 
 ```python
+def on_load(self, core):
+    core.subscribe("ENGINE_READY", self.on_ready)
+
 def on_ready(self, core):
     self.ui.start()
 ```
@@ -209,7 +214,7 @@ def on_shutdown(self, core):
 
 ## 5. Strict rules
 
-* A mod must **never** access another mod’s internals directly.
+* A mod must **never** access another mod's internals directly.
 * A mod must **never** import another mod.
 
 A mod must use only:
