@@ -21,7 +21,7 @@ This design enables **radical extensibility**: anything not strictly required fo
 
 The logical project structure is as follows:
 
-```id="y7k2q1"
+```
 /
 ├── main.py
 ├── core/
@@ -30,13 +30,19 @@ The logical project structure is as follows:
 │   ├── service_registry.py
 │   ├── core_api.py
 │   └── default_mods/
-│       ├── mod_cmd/
 │       ├── mod_error_and_log/
+│       ├── mod_cmd/
 │       ├── mod_styled_text/
-│       └── ...
+│       ├── mod_mod_manager/
+│       ├── mod_file_system/
+│       ├── mod_script_engine/
+│       ├── mod_adventure_loader/
+│       ├── mod_base_adventure/
+│       └── mod_ui_terminal/
 ├── mods/
 │   └── default/
 │       ├── mod_graph_editor/
+│       ├── mod_debug_tools/
 │       ├── mod_condition_engine/
 │       └── ...
 └── docs/
@@ -48,7 +54,7 @@ Each directory has a clear and independent responsibility.
 
 ## **3. The Core**
 
-The **core** is the engine’s foundation.
+The **core** is the engine's foundation.
 It is intentionally minimal and contains **no domain-specific logic**.
 
 ---
@@ -110,7 +116,7 @@ They can implement any feature: UI, graphs, conditions, inventory, formats, netw
 
 A typical mod contains:
 
-```id="kz6p8w"
+```
 mod_name/
 ├── manifest.json
 ├── main.py
@@ -124,7 +130,7 @@ mod_name/
 
 Mods may implement the following hooks:
 
-```python id="s9h2jd"
+```python
 on_load(core)
 on_init(core)
 on_ready(core)
@@ -150,21 +156,30 @@ Mods must not directly access the internals of other mods.
 
 They are located in:
 
-```id="w1j4zn"
+```
 /core/default_mods/
 ```
 
-Examples:
+They are split into two sub-types:
 
-* `mod_error_and_log`
-* `mod_cmd`
-* `mod_styled_text`
-* `mod_ui`
-* `mod_mod_manager`
-* `mod_file_system`
-* `mod_script_engine`
-* `mod_adventure_manager`
-* `mod_base_adventure`
+### **5.1 `core_default` — Required**
+
+| Mod                | Main Role              | Service provided |
+| ------------------ | ---------------------- | ---------------- |
+| mod_error_and_log  | Logging + errors       | logger           |
+| mod_cmd            | CLI interface          | cmd_interface    |
+| mod_styled_text    | Text styling           | styled_text      |
+| mod_mod_manager    | Mod management         | mod_manager      |
+| mod_file_system    | File system access     | file_system      |
+| mod_base_adventure | Base adventure types   | base_adventure   |
+
+### **5.2 `default` — Non-critical but bundled**
+
+| Mod                  | Main Role          | Service provided  |
+| -------------------- | ------------------ | ----------------- |
+| mod_script_engine    | Script engine      | script_engine     |
+| mod_adventure_loader | Adventure loading  | adventure_manager |
+| mod_ui_terminal      | Text UI            | ui_terminal       |
 
 They follow the same philosophy as the core:
 **minimal, structured, and extensible**.
@@ -173,17 +188,18 @@ They follow the same philosophy as the core:
 
 ## **6. Default Mods**
 
-Default mods are not required for the engine to run, but are essential for non-technical creators.
+Default mods are not required for the engine to run, but are useful for creators.
 
 They are located in:
 
-```id="f3n7qd"
+```
 /mods/default/
 ```
 
 Examples:
 
 * `mod_graph_editor`
+* `mod_debug_tools`
 * `mod_condition_engine`
 * `mod_inventory`
 * `mod_characters`
@@ -207,8 +223,9 @@ The engine follows this lifecycle:
 5. Mod loading (`on_load`)
 6. Initialization (`on_init`)
 7. **ENGINE_READY**
-8. Main loop (tick)
-9. Shutdown (`on_shutdown`)
+8. Final activation (`on_ready`)
+9. Main loop (tick)
+10. Shutdown (`on_shutdown`)
 
 The core never restarts itself.
 Resets are handled by mods.
