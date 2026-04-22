@@ -8,13 +8,13 @@
 
 Every StoryMaker V7 mod must include a file:
 
-```id="m1"
+```
 manifest.json
 ```
 
 This file defines:
 
-* the mod’s identity
+* the mod's identity
 * its version
 * its dependencies
 * its conflicts
@@ -31,7 +31,7 @@ The manifest is **mandatory** and must strictly follow this specification.
 
 A complete valid manifest:
 
-```json id="m2"
+```json
 {
   "name": "mod_example",
   "version": "1.0.0",
@@ -95,12 +95,16 @@ Examples:
 
 Defines the mod type.
 
-| Type           | Description                   |
-| -------------- | ----------------------------- |
-| `core_engine`  | Reserved for the engine core  |
-| `core_default` | Essential built-in mods       |
-| `extension`    | Standard mods                 |
-| `experimental` | Unstable or experimental mods |
+| Type           | Description                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `core_engine`  | Reserved for the engine core                                                |
+| `core_default` | Essential built-in mods, loaded before all others                          |
+| `default`      | Non-critical mods loaded automatically, located in `/core/default_mods/`   |
+| `extension`    | Standard or optional mods, located in `/mods/default/` or external paths   |
+| `experimental` | Unstable or experimental mods                                               |
+
+> **Note:** `core_default` and `default` mods are bundled with the engine.
+> Only `extension` and `experimental` mods are typically provided externally.
 
 ---
 
@@ -126,7 +130,7 @@ Path to the main Python file of the mod.
 
 Example:
 
-```json id="m3"
+```json
 "entrypoint": "main.py"
 ```
 
@@ -140,7 +144,7 @@ Defines required dependencies.
 
 Format:
 
-```json id="m4"
+```json
 "requires": {
   "mod_name": ">=1.0.0,<2.0.0"
 }
@@ -159,7 +163,7 @@ Defines incompatible mods.
 
 Format:
 
-```json id="m5"
+```json
 "conflicts": {
   "mod_name": "*"
 }
@@ -167,7 +171,7 @@ Format:
 
 or:
 
-```json id="m6"
+```json
 "conflicts": {
   "mod_name": "<1.5.0"
 }
@@ -255,7 +259,7 @@ If validation fails:
 
 ## **7. Complete Example**
 
-```json id="m7"
+```json
 {
   "name": "mod_cmd",
   "version": "1.0.0",
