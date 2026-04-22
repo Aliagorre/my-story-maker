@@ -1,6 +1,6 @@
-\# my-story-maker/convention.md
+\# my-story-maker/docs/conventions/convention.md
 
-## 1. StoryMaker V7 - Objective
+# 1. StoryMaker V7 - Objective
 
 Define the standards governing:
 
@@ -33,7 +33,7 @@ Examples:
 
 * `mod_cmd`
 * `mod_error_and_log`
-* `mod_ui`
+* `mod_ui_terminal`
 * `mod_script_engine`
 
 Core mods are located in `/core/default_mods/`.
@@ -115,6 +115,12 @@ Examples:
 │       ├── mod_cmd/
 │       ├── mod_error_and_log/
 │       ├── mod_styled_text/
+│       ├── mod_ui_terminal/
+│       ├── mod_script_engine/
+│       ├── mod_adventure_loader/
+│       ├── mod_mod_manager/
+│       ├── mod_file_system/
+│       ├── mod_base_adventure/
 │       └── ...
 ├── mods/
 │   └── default/
@@ -164,10 +170,13 @@ manifest.json
 
 ## 4.1 — Mod Types
 
-* `core_engine` → reserved for the core (rare)
-* `core_default` → essential built-in mods
-* `extension` → standard mods
-* `experimental` → unstable mods
+| Type           | Description                                                               |
+| -------------- | ------------------------------------------------------------------------- |
+| `core_engine`  | Reserved for the core (rare)                                              |
+| `core_default` | Essential built-in mods, required for the engine to function              |
+| `default`      | Non-critical built-in mods, loaded automatically but not strictly required |
+| `extension`    | Standard optional mods                                                    |
+| `experimental` | Unstable mods                                                             |
 
 ---
 
@@ -303,4 +312,3 @@ Example:
 * No direct interaction between mods (use `ServiceRegistry`)
 * Unit tests for the core
 * Integration tests for core mods
-
