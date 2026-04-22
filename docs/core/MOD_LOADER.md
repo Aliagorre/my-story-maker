@@ -13,7 +13,7 @@ The **Mod Loader** is the core component responsible for:
 - determining load order,
 - dynamically loading entrypoints,
 - instantiating mods,
-- executing lifecycle hooks (`on_load`, `on_init`, `on_shutdown`),
+- executing lifecycle hooks (`on_load`, `on_init`, `on_ready`, `on_shutdown`),
 - handling errors,
 - safely disabling problematic mods.
 
@@ -32,19 +32,22 @@ The Mod Loader must be:
 The Mod Loader follows a strict pipeline:
 
 ```
-
 1. Discovery
 2. Manifest reading
 3. Manifest validation
 4. Dependency resolution
 5. Conflict detection
 6. Load order computation
-7. Loading (on_load)
+7. Loading        (on_load)
 8. Initialization (on_init)
-
+9. ENGINE_READY   → activation (on_ready)
 ```
 
 Each step is described below.
+
+> **Note:** `on_ready` is not called directly by the Mod Loader.
+> It is triggered by each mod subscribing to the `ENGINE_READY` event during `on_load`,
+> and is therefore part of the lifecycle even though it is event-driven.
 
 ---
 
@@ -53,11 +56,9 @@ Each step is described below.
 The Mod Loader scans the following directories:
 
 ```
-
 /core/default_mods/
 /mods/
 /mods/default/
-
 ```
 
 A folder is recognized as a mod if:
@@ -69,9 +70,7 @@ A folder is recognized as a mod if:
 For each discovered mod, the core emits:
 
 ```
-
 MOD_DISCOVERED
-
 ```
 
 ---
@@ -99,7 +98,7 @@ The Mod Loader checks:
 
 - `name` (format `mod_xxx`),
 - `version` (strict SemVer),
-- `type` (allowed value),
+- `type` (allowed value: `core_engine`, `core_default`, `default`, `extension`, `experimental`),
 - `priority` (integer),
 - `entrypoint` (existing file),
 - `permissions` (valid list),
@@ -166,11 +165,9 @@ Final order respects:
 Example:
 
 ```
-
 mod_error_and_log   (priority 900)
 mod_cmd             (priority 100)
 mod_graph_editor    (priority 50)
-
 ```
 
 ---
@@ -183,15 +180,13 @@ For each mod, in computed order:
 2. instantiation of the main class,
 3. execution of hook:
 
-```
-
+```python
 on_load(core)
-
 ```
 
 At this stage:
 
-- mods may subscribe to events,
+- mods may subscribe to events (including `ENGINE_READY` for `on_ready`),
 - mods may register services,
 - mods may read their manifest,
 - mods must not yet execute business logic.
@@ -224,7 +219,30 @@ On error:
 
 ---
 
-## 11. Mod Shutdown (`on_shutdown`)
+## 11. ENGINE_READY and `on_ready`
+
+Once all mods have been initialized, the core emits:
+
+```
+ENGINE_READY
+```
+
+Mods that subscribed to this event during `on_load` then execute their `on_ready(core)` logic.
+
+At this stage:
+
+- all services are guaranteed to be available,
+- mods may start UIs, threads, or async tasks,
+- mods may load adventures or launch interactive systems.
+
+On error:
+
+- `MOD_ERROR` event is emitted,
+- mod remains loaded but may be marked unstable.
+
+---
+
+## 12. Mod Shutdown (`on_shutdown`)
 
 During engine shutdown:
 
@@ -241,16 +259,16 @@ Mods must:
 
 ---
 
-## 12. Error Handling
+## 13. Error Handling
 
-### 12.1 Mod Errors
+### 13.1 Mod Errors
 
 - caught safely,
 - logged,
 - `MOD_ERROR` event emitted,
 - mod disabled if necessary.
 
-### 12.2 Critical Errors
+### 13.2 Critical Errors
 
 If an error prevents the engine from continuing:
 
@@ -259,7 +277,7 @@ If an error prevents the engine from continuing:
 
 ---
 
-## 13. Hot-Reload (Future)
+## 14. Hot-Reload (Future)
 
 The Mod Loader is designed to support:
 
@@ -271,19 +289,19 @@ This feature will be introduced in a future version.
 
 ---
 
-## 14. Summary
+## 15. Summary
 
-| Step | Role |
-|------|------|
-| Discovery | Find mods |
-| Reading | Load manifests |
-| Validation | Verify structure |
-| Dependencies | Check versions and cycles |
-| Conflicts | Detect incompatibilities |
-| Order | Compute load sequence |
-| on_load | Load mods |
-| on_init | Initialize mods |
-| on_shutdown | Clean up mods |
+| Step          | Role                              |
+| ------------- | --------------------------------- |
+| Discovery     | Find mods                         |
+| Reading       | Load manifests                    |
+| Validation    | Verify structure                  |
+| Dependencies  | Check versions and cycles         |
+| Conflicts     | Detect incompatibilities          |
+| Order         | Compute load sequence             |
+| on_load       | Load mods, subscribe to events    |
+| on_init       | Initialize mods                   |
+| ENGINE_READY  | Trigger on_ready via event        |
+| on_shutdown   | Clean up mods                     |
 
 The Mod Loader is **strict**, **robust**, **deterministic**, and **predictable**.
-
