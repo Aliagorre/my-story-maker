@@ -1,73 +1,129 @@
-# core/event.py
-from typing import Callable, Dict, List
+# core/event_bus.py
+from typing import Callable
 
-Handler = Callable[..., None]
+from event import (
+    DEBUG,
+    ENGINE_BOOT,
+    ENGINE_ERROR,
+    ENGINE_FATAL_ERROR,
+    ENGINE_INIT,
+    ENGINE_READY,
+    ENGINE_SHUTDOWN,
+    ENGINE_TICK,
+    INFO,
+    MOD_CONFLICT,
+    MOD_DEPENDENCY_ERROR,
+    MOD_DISCOVERED,
+    MOD_ERROR,
+    MOD_INITIALIZED,
+    MOD_LOADED,
+    MOD_MANIFEST_ERROR,
+    event_scheme,
+    is_event_structure,
+)
+
+""" Event
+{
+  "name": "ENGINE_READY",
+  "source": "core",
+  "payload": {},
+  "timestamp": 1234567890
+}
+"""
+# No idea what put in payload and timestamp
+# rename MOD_ERROR to MOD_ERROR : must update the docs
 
 class EventBus:
+    """
+The EventBus is the central communication mechanism between:
+
+the core,
+core mods (mods_core),
+default mods,
+external mods.
+    """
     def __init__(self):
-        self._events: Dict[str, List[Handler]] = {
-            "on_engine_warning": [],
-            "on_engine_error":   [],
-            "on_engine_log":     [],
+        self._events: dict[str, list[Callable]] = {
+            ENGINE_BOOT  : [],
+            ENGINE_INIT  : [],
+            ENGINE_READY : [],
+            ENGINE_TICK  : [],
+            ENGINE_SHUTDOWN : [],
+            ENGINE_ERROR    : [],
+            ENGINE_FATAL_ERROR : [],
+            MOD_DISCOVERED : [],
+            MOD_LOADED     : [],
+            MOD_INITIALIZED: [],
+            MOD_ERROR      : [],
+            MOD_MANIFEST_ERROR  : [],
+            MOD_DEPENDENCY_ERROR: [],
+            MOD_CONFLICT        : [],
         }
 
-    def register_event(self, event_name: str) -> None:
-        if event_name not in self._events:
-            self._events[event_name] = []
+    def emit(self, event: dict) -> bool :
+        """
+The EventBus validates the event structure.
 
-    def emit_error(self, msg: str) -> None:
-        handlers = self._events.get("on_engine_error", [])
-        if not handlers:
-            raise EngineError(msg)          # correct : erreur fatale si personne n'écoute
-        for h in handlers:
-            try:
-                h(msg)
-            except Exception as e:
-                raise EngineError(f"Error in error-handler: {e}")
+All subscribed handlers are called.
 
-    def emit_warning(self, msg: str) -> None:
-        handlers = self._events.get("on_engine_warning", [])
-        for h in handlers:                  # FIX : silencieux si aucun handler
-            try:
-                h(msg)
-            except Exception as e:
-                raise EngineError(f"Error in warning-handler: {e}")
-
-    def emit_log(self, msg: str) -> None:
-        handlers = self._events.get("on_engine_log", [])
-        for h in handlers:                  # FIX : silencieux si aucun handler
-            try:
-                h(msg)
-            except Exception as e:
-                raise EngineError(f"Error in log-handler: {e}")
-
-    def on(self, event_name: str, handler: Handler) -> None:
-        if not callable(handler):
-            raise EngineError(             # FIX : raise direct, pas via emit_error
-                f"Handler for event '{event_name}' must be callable"
-            )
-        if event_name not in self._events:
-            raise EngineError(
-                f"Unknown event '{event_name}'. Call register_event() first."
-            )
-        self._events[event_name].append(handler)
-
-    def emit(self, event_name: str, *args, **kwargs) -> None:
-        if event_name not in self._events:
-            self.emit_warning(
-                f"emit() called with unregistered event '{event_name}'. "
-                f"Did you forget to call register_event('{event_name}')?"
-            )
-            return
-        handlers = self._events[event_name]
-        if not handlers:
-            return
-        for h in handlers:
-            try:
-                h(*args, **kwargs)
-            except Exception as e:
-                self.emit_error(f"Error in handler for event '{event_name}': {e}")
-
-    def has_event(self, event_name: str) -> bool:
-        return event_name in self._events
+Errors in a handler:
+ - are caught,
+ - are logged,
+ - do not stop propagation.
+        """
+        if not is_event_structure(event) :
+            self.log(DEBUG, "event not follow the structure") # we need only log, no emit Warning
+            return False
+        if event["name"] not in self._events :
+            self.log(DEBUG, f"{event["name"]} : unknown event") # Where are log come from ?
+            return False
+        else :
+            handlers = self._events[event["name"]]
+            for h in handlers:
+                try:
+                    h(event)
+                except Exception as e:
+                    self.log(DEBUG, f"{event["name"]} : Exception in handler {h.__name__} : {e}")
+                    self.emit( event_scheme(MOD_ERROR,"core", {}, 0) ) # No idea what put in payload and timestamp
+            return True
         
+    def subscribe(self, event_name: str, callback: Callable) -> bool :
+        """
+Subscribes a handler to an event.
+Return True in subscribe success
+        """
+        if event_name not in self._events :
+            self.log(DEBUG, f"{event_name} : unknown event")
+            return False
+        elif not isinstance(callback, Callable) : # Can't be None
+            self.log(DEBUG, "callback must be callable")
+            return False
+        else :
+            self.log(INFO, f"{event_name} : new callback : {callback.__name__}")
+            self._events[event_name].append(callback)
+            return True
+        
+    def unsubscribe(self, event_name: str, callback: Callable) -> bool:
+        """
+Unsubscribes a handler from an event.
+Return True in unsubscribe success
+        """
+        if event_name not in self._events :
+            self.log(DEBUG, f"{event_name} : unknown event")
+            return False
+        elif not isinstance(callback, Callable) : # Can't be None
+            self.log(DEBUG, "callback must be callable")
+            return False
+        elif callback not in self._events[event_name] :
+            self.log(DEBUG, f"no {callback.__name__} in {event_name}")
+            return False
+        else :
+            self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
+            try :
+                self._events[event_name].remove(callback)
+            except Exception as e :
+                self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
+                self.emit( event_scheme(ENGINE_ERROR, "core", {}, 0) ) # No idea what put in payload and timestamp
+            return True
+
+# How do Sync/Async mods ?                                                                                  

@@ -2,14 +2,16 @@
 
 from typing import Any, Callable
 
-from core.event import DEBUG, ERROR, INFO, MOD_ERROR
+from core.event import (
+    DEBUG,
+    ERROR,
+    INFO,
+    MOD_CONFLICT,
+    MOD_ERROR,
+    event_scheme,
+    is_snake_case,
+)
 
-
-def is_snake_case(string:str) -> bool :
-    if not string :
-        return False
-    else :
-        return all("a" <= x <= "z" or "0" <= x <= "9" or x == "_"  for x in string)
 
 class ServiceRegistry :
     """
@@ -34,16 +36,25 @@ Return True if service is registered
         """
         if  name in self.service_dict :
             self.log(ERROR, f"{name} : other service whit same name") 
-            self.emit(MOD_ERROR,{"service_name": name, "reason": "duplicate", "expected": "unique"})
+            self.emit(
+                event_scheme(MOD_CONFLICT, "core",
+                    {"service_name": name, "reason": "duplicate", "expected": "unique"},0) )
             return False 
+        
         elif not is_snake_case(name) :
             self.log(ERROR, f"{name} don't use snake_case convention")    
-            self.emit(MOD_ERROR,{"service_name": name, "reason": "name_convention", "expected": "snake_case"})
+            self.emit(
+                event_scheme(MOD_ERROR, "core", 
+                    {"service_name": name, "reason": "name_convention", "expected": "snake_case"}, 0) )
             return False  
+        
         elif instance is None:
             self.log(ERROR, f"{name} are no valid instance")     
-            self.emit(MOD_ERROR,{"service_name": name, "reason": "invalid_instance", "expected": "not_NoneType"}) 
+            self.emit(
+                event_scheme(MOD_ERROR,"core",
+                    {"service_name": name, "reason": "invalid_instance", "expected": "not_NoneType"}, 0) ) 
             return False 
+        
         else  :
             self.service_dict[name] = instance
             self.log(INFO, f"Service register : {name}") 
@@ -83,4 +94,4 @@ Checks if a service exists.
 Returns the list of registered services name.
         """
         return sorted(list(self.service_dict.keys()))
-                                
+                                                                
