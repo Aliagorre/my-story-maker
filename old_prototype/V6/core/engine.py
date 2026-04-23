@@ -1,10 +1,12 @@
 # core/engine.py
-from core.graph import Graph
-from core.context import Context
-from core.event import EventBus
-from core.errors import EngineError
-from typing import Dict, Any, List
 import json
+from typing import Any, Dict, List
+
+from core.context import Context
+from core.errors import EngineError
+from core.graph import Graph
+from EVENTS import EventBus
+
 
 class Engine:
     def __init__(self, graph: Graph, context: Context, events: EventBus):
@@ -175,5 +177,7 @@ def load_graph_from_file(path: str) -> Graph:
         raise EngineError(f"Invalid graph file '{path}': {e}") from e
     except FileNotFoundError:
         raise EngineError(f"Graph file not found: '{path}'")
+    return Graph(data)
+
     return Graph(data)
 

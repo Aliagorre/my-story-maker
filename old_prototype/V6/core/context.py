@@ -1,8 +1,9 @@
 # core/context.py
 import copy
-from typing import Callable, Dict, Any, List
+from typing import Any, Callable, Dict, List
+
 from core.condition_engine import ConditionEngine
-from core.event import EventBus
+from EVENTS import EventBus
 
 HookHandler = Callable[..., None]
 
@@ -94,4 +95,4 @@ class RegistrationContext(Context):
         # pour que les closures qui ont capturé ce CE voient le vrai ctx.
         self.condition_engine.context = self._base
         self._base.condition_engine   = self.condition_engine
-        self._base.events             = self.events
+        self._base.events             = self.events        self._base.events             = self.events

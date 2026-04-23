@@ -1,38 +1,35 @@
 # core/event_bus.py
 from typing import Callable
 
-from event import (
-    DEBUG,
-    ENGINE_BOOT,
-    ENGINE_ERROR,
-    ENGINE_FATAL_ERROR,
-    ENGINE_INIT,
-    ENGINE_READY,
-    ENGINE_SHUTDOWN,
-    ENGINE_TICK,
-    INFO,
-    MOD_CONFLICT,
-    MOD_DEPENDENCY_ERROR,
-    MOD_DISCOVERED,
-    MOD_ERROR,
-    MOD_INITIALIZED,
-    MOD_LOADED,
-    MOD_MANIFEST_ERROR,
-    event_scheme,
-    is_event_structure,
-)
+from EVENTS import EVENTS, MOD_ERROR
+from LOG_LEVELS import DEBUG, INFO
 
-""" Event
-{
-  "name": "ENGINE_READY",
-  "source": "core",
-  "payload": {},
-  "timestamp": 1234567890
-}
-"""
-# No idea what put in payload and timestamp
-# rename MOD_ERROR to MOD_ERROR : must update the docs
 
+def is_upper_case(string : str) -> bool :
+    if not string :
+        return False
+    else :
+        return all("A" <= x <= "Z" or "0" <= x <= "9" or x == "_"  for x in string)
+
+def is_event_structure(event : dict) -> bool :
+    if "name" not in event :
+        return False
+    elif not is_upper_case(event["name"]) :
+        return False
+    elif "source" not in event :
+        return False
+    elif not isinstance(event["source"], str) :
+        return False
+    elif "payload" not in event :
+        return False
+    elif not isinstance(event["payload"], dict) :
+        return False
+    elif "timestamp" not in event :
+        return False
+    elif not isinstance(event["timestamp"], int) :
+        return False
+    else :
+        return True
 class EventBus:
     """
 The EventBus is the central communication mechanism between:
@@ -42,23 +39,10 @@ core mods (mods_core),
 default mods,
 external mods.
     """
-    def __init__(self):
-        self._events: dict[str, list[Callable]] = {
-            ENGINE_BOOT  : [],
-            ENGINE_INIT  : [],
-            ENGINE_READY : [],
-            ENGINE_TICK  : [],
-            ENGINE_SHUTDOWN : [],
-            ENGINE_ERROR    : [],
-            ENGINE_FATAL_ERROR : [],
-            MOD_DISCOVERED : [],
-            MOD_LOADED     : [],
-            MOD_INITIALIZED: [],
-            MOD_ERROR      : [],
-            MOD_MANIFEST_ERROR  : [],
-            MOD_DEPENDENCY_ERROR: [],
-            MOD_CONFLICT        : [],
-        }
+    def __init__(self, log:Callable, emit_error:Callable ):
+        self._events: dict[str, list[Callable]] = { e : [] for e in EVENTS }
+        self.log = log
+        self.emit_error= emit_error
 
     def emit(self, event: dict) -> bool :
         """
@@ -72,10 +56,10 @@ Errors in a handler:
  - do not stop propagation.
         """
         if not is_event_structure(event) :
-            self.log(DEBUG, "event not follow the structure") # we need only log, no emit Warning
+            self.log(DEBUG, "event not follow the structure")
             return False
         if event["name"] not in self._events :
-            self.log(DEBUG, f"{event["name"]} : unknown event") # Where are log come from ?
+            self.log(DEBUG, f"{event['name']} : unknown event") 
             return False
         else :
             handlers = self._events[event["name"]]
@@ -83,8 +67,8 @@ Errors in a handler:
                 try:
                     h(event)
                 except Exception as e:
-                    self.log(DEBUG, f"{event["name"]} : Exception in handler {h.__name__} : {e}")
-                    self.emit( event_scheme(MOD_ERROR,"core", {}, 0) ) # No idea what put in payload and timestamp
+                    self.log(DEBUG, f"{event['name']} : Exception in handler {h.__name__} : {e}")
+                    self.emit_error(MOD_ERROR, {"event_name" : event["name"], "handler" : h.__name__, "exception" : e}  ) 
             return True
         
     def subscribe(self, event_name: str, callback: Callable) -> bool :
@@ -95,7 +79,7 @@ Return True in subscribe success
         if event_name not in self._events :
             self.log(DEBUG, f"{event_name} : unknown event")
             return False
-        elif not isinstance(callback, Callable) : # Can't be None
+        elif not callable(callback) : 
             self.log(DEBUG, "callback must be callable")
             return False
         else :
@@ -111,7 +95,7 @@ Return True in unsubscribe success
         if event_name not in self._events :
             self.log(DEBUG, f"{event_name} : unknown event")
             return False
-        elif not isinstance(callback, Callable) : # Can't be None
+        elif not isinstance(callback, Callable) : 
             self.log(DEBUG, "callback must be callable")
             return False
         elif callback not in self._events[event_name] :
@@ -121,9 +105,9 @@ Return True in unsubscribe success
             self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
             try :
                 self._events[event_name].remove(callback)
+                return True
             except Exception as e :
                 self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
-                self.emit( event_scheme(ENGINE_ERROR, "core", {}, 0) ) # No idea what put in payload and timestamp
-            return True
-
-# How do Sync/Async mods ?                                                                                  
+                self.emit_error(MOD_ERROR, {"event_name" : event_name, "exception" : e} )
+                return False
+        

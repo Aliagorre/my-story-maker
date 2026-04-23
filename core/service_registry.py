@@ -2,16 +2,15 @@
 
 from typing import Any, Callable
 
-from core.event import (
-    DEBUG,
-    ERROR,
-    INFO,
-    MOD_CONFLICT,
-    MOD_ERROR,
-    event_scheme,
-    is_snake_case,
-)
+from EVENTS import MOD_CONFLICT, MOD_ERROR
+from LOG_LEVELS import DEBUG, ERROR, INFO
 
+
+def is_snake_case(string:str) -> bool :
+    if not string :
+        return False
+    else :
+        return all("a" <= x <= "z" or "0" <= x <= "9" or x == "_"  for x in string)
 
 class ServiceRegistry :
     """
@@ -23,11 +22,10 @@ access services provided by other mods,
 share stable APIs without direct dependencies,
 avoid cross-imports between mods.
     """
-    def __init__(self, log : Callable, emit : Callable) -> None :
-        # We do test with mocks (fonctions factices)
+    def __init__(self, log : Callable, emit_error : Callable) -> None :
         self.service_dict = {} 
         self.log = log 
-        self.emit= emit
+        self.emit_error = emit_error
 
     def register(self, name: str, instance: Any) -> bool :
         """
@@ -36,25 +34,17 @@ Return True if service is registered
         """
         if  name in self.service_dict :
             self.log(ERROR, f"{name} : other service whit same name") 
-            self.emit(
-                event_scheme(MOD_CONFLICT, "core",
-                    {"service_name": name, "reason": "duplicate", "expected": "unique"},0) )
+            self.emit_error(MOD_CONFLICT, {"service_name": name, "reason": "duplicate", "expected": "unique"} )
             return False 
         
         elif not is_snake_case(name) :
             self.log(ERROR, f"{name} don't use snake_case convention")    
-            self.emit(
-                event_scheme(MOD_ERROR, "core", 
-                    {"service_name": name, "reason": "name_convention", "expected": "snake_case"}, 0) )
+            self.emit_error(MOD_ERROR, {"service_name": name, "reason": "name_convention", "expected": "snake_case"} )
             return False  
-        
         elif instance is None:
             self.log(ERROR, f"{name} are no valid instance")     
-            self.emit(
-                event_scheme(MOD_ERROR,"core",
-                    {"service_name": name, "reason": "invalid_instance", "expected": "not_NoneType"}, 0) ) 
+            self.emit_error(MOD_ERROR, {"service_name": name, "reason": "invalid_instance", "expected": "not_NoneType"} ) 
             return False 
-        
         else  :
             self.service_dict[name] = instance
             self.log(INFO, f"Service register : {name}") 
@@ -94,4 +84,4 @@ Checks if a service exists.
 Returns the list of registered services name.
         """
         return sorted(list(self.service_dict.keys()))
-                                                                
+                                                                                                                                                                                                                                                                
