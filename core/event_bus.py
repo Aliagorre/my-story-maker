@@ -1,35 +1,24 @@
 # core/event_bus.py
+import asyncio
+import inspect
 from typing import Callable
 
 from EVENTS import EVENTS, MOD_ERROR
-from LOG_LEVELS import DEBUG, INFO
+from LOG_LEVELS import DEBUG, ERROR, INFO
 
 
-def is_upper_case(string : str) -> bool :
-    if not string :
-        return False
-    else :
-        return all("A" <= x <= "Z" or "0" <= x <= "9" or x == "_"  for x in string)
+def is_upper_case(string: str) -> bool:
+    return bool(string) and all("A" <= x <= "Z" or "0" <= x <= "9" or x == "_" for x in string)
 
-def is_event_structure(event : dict) -> bool :
-    if "name" not in event :
-        return False
-    elif not is_upper_case(event["name"]) :
-        return False
-    elif "source" not in event :
-        return False
-    elif not isinstance(event["source"], str) :
-        return False
-    elif "payload" not in event :
-        return False
-    elif not isinstance(event["payload"], dict) :
-        return False
-    elif "timestamp" not in event :
-        return False
-    elif not isinstance(event["timestamp"], int) :
-        return False
-    else :
-        return True
+def is_event_structure(event: dict) -> bool:
+    return (
+        isinstance(event, dict)
+        and "name" in event and is_upper_case(event["name"])
+        and "source" in event and isinstance(event["source"], str)
+        and "payload" in event and isinstance(event["payload"], dict)
+        and "timestamp" in event and isinstance(event["timestamp"], int)
+    )
+
 class EventBus:
     """
 The EventBus is the central communication mechanism between:
@@ -39,12 +28,12 @@ core mods (mods_core),
 default mods,
 external mods.
     """
-    def __init__(self, log:Callable, emit_error:Callable ):
-        self._events: dict[str, list[Callable]] = { e : [] for e in EVENTS }
+    def __init__(self, log: Callable, emit_error: Callable):
+        self._events: dict[str, list[Callable]] = {e: [] for e in EVENTS}
         self.log = log
-        self.emit_error= emit_error
+        self.emit_error = emit_error
 
-    def emit(self, event: dict) -> bool :
+    def emit(self, event: dict) -> bool:
         """
 The EventBus validates the event structure.
 
@@ -55,38 +44,30 @@ Errors in a handler:
  - are logged,
  - do not stop propagation.
         """
-        if not is_event_structure(event) :
-            self.log(DEBUG, "event not follow the structure")
-            return False
-        if event["name"] not in self._events :
-            self.log(DEBUG, f"{event['name']} : unknown event") 
-            return False
-        else :
-            handlers = self._events[event["name"]]
-            for h in handlers:
-                try:
-                    h(event)
-                except Exception as e:
-                    self.log(DEBUG, f"{event['name']} : Exception in handler {h.__name__} : {e}")
-                    self.emit_error(MOD_ERROR, {"event_name" : event["name"], "handler" : h.__name__, "exception" : e}  ) 
-            return True
-        
-    def subscribe(self, event_name: str, callback: Callable) -> bool :
+        try:
+            asyncio.get_running_loop()
+            asyncio.create_task(self._emit_async(event))
+        except RuntimeError:
+            return self._emit_sync(event)
+
+        return True
+
+    def subscribe(self, event_name: str, callback: Callable) -> bool:
         """
 Subscribes a handler to an event.
 Return True in subscribe success
         """
-        if event_name not in self._events :
+        if event_name not in self._events:
             self.log(DEBUG, f"{event_name} : unknown event")
             return False
-        elif not callable(callback) : 
+        if not callable(callback):
             self.log(DEBUG, "callback must be callable")
             return False
-        else :
-            self.log(INFO, f"{event_name} : new callback : {callback.__name__}")
-            self._events[event_name].append(callback)
-            return True
-        
+
+        self._events[event_name].append(callback)
+        self.log(INFO, f"{event_name} : new callback : {callback.__name__}")
+        return True
+
     def unsubscribe(self, event_name: str, callback: Callable) -> bool:
         """
 Unsubscribes a handler from an event.
@@ -95,7 +76,7 @@ Return True in unsubscribe success
         if event_name not in self._events :
             self.log(DEBUG, f"{event_name} : unknown event")
             return False
-        elif not isinstance(callback, Callable) : 
+        elif not callable(callback) : 
             self.log(DEBUG, "callback must be callable")
             return False
         elif callback not in self._events[event_name] :
@@ -107,7 +88,96 @@ Return True in unsubscribe success
                 self._events[event_name].remove(callback)
                 return True
             except Exception as e :
-                self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
-                self.emit_error(MOD_ERROR, {"event_name" : event_name, "exception" : e} )
+                self.emit_error(MOD_ERROR, {"event_name" : event_name, "exception" : str(e)} )
                 return False
-        
+
+    def register(self, event_name: str) -> bool:
+        """
+Register new custom event 
+Return True in register success
+        """
+        if not is_upper_case(event_name):
+            self.log(DEBUG, "event name must be UPPER_CASE")
+            return False
+        if event_name in self._events:
+            return True
+        self._events[event_name] = []
+        return True
+
+    def unregister(self, event_name) -> bool :
+        """
+Unregister new custom event 
+Return True in UNregister success
+        """
+        if event_name not in self._events :
+            self.log(DEBUG, f"{event_name} : unknown event")
+            return False
+        del self._events[event_name]
+        return True
+
+    def _emit_sync(self, event: dict) -> bool:
+        if not is_event_structure(event):
+            self.log(DEBUG, "event does not follow structure")
+            return False
+
+        if event["name"] not in self._events:
+            self.log(INFO, f"{event['name']} : unknown event")
+            return False
+
+        for handler in self._events[event["name"]]:
+            try:
+                if inspect.iscoroutinefunction(handler):
+                    # Async handler in sync mode → schedule it
+                    asyncio.run(handler(event))
+                else:
+                    handler(event)
+            except Exception as e:
+                self._handler_error(event, handler, e)
+
+        return True
+
+    async def _emit_async(self, event: dict) -> bool:
+        if not is_event_structure(event):
+            self.log(DEBUG, "event does not follow structure")
+            return False
+
+        if event["name"] not in self._events:
+            self.log(INFO, f"{event['name']} : unknown event")
+            return False
+
+        sync_handlers = []
+        async_handlers = []
+
+        for h in self._events[event["name"]]:
+            if inspect.iscoroutinefunction(h):
+                async_handlers.append(h)
+            else:
+                sync_handlers.append(h)
+
+        # 1. Run sync handlers
+        for h in sync_handlers:
+            try:
+                h(event)
+            except Exception as e:
+                self._handler_error(event, h, e)
+
+        # 2. Run async handlers
+        for h in async_handlers:
+            try:
+                await h(event)
+            except Exception as e:
+                self._handler_error(event, h, e)
+
+        return True
+
+    def _handler_error(self, event, handler, exception):
+        self.log(ERROR, f"{event['name']} : Exception in handler {handler.__name__} : {exception}")
+        self.emit_error(
+            MOD_ERROR,
+            {
+                "event_name": event["name"],
+                "handler": handler.__name__,
+                "exception": str(exception),
+            }
+        )
+     

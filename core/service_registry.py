@@ -33,8 +33,8 @@ Registers a service.
 Return True if service is registered
         """
         if  name in self.service_dict :
-            self.log(ERROR, f"{name} : other service whit same name") 
-            self.emit_error(MOD_CONFLICT, {"service_name": name, "reason": "duplicate", "expected": "unique"} )
+            self.log(ERROR, f"Service '{name}' already exists") 
+            self.emit_error(MOD_ERROR, {"service_name": name, "reason": "duplicate", "expected": "unique"} )
             return False 
         
         elif not is_snake_case(name) :

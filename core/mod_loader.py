@@ -179,4 +179,3 @@ class ModLoader:
         for mod in mods_by_name.values():
             visit(mod)
         return resolved
-        return resolved

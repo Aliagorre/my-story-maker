@@ -1,0 +1,44 @@
+# core/__mod_discover.py
+
+from pathlib import Path
+from typing import Callable
+
+from core.__mod_storage import ModStorage
+from EVENTS import MOD_DISCOVERED
+from LOG_LEVELS import INFO
+
+
+class ModDiscover :
+    def __init__(self, log:Callable, emit_error:Callable, emit:Callable) -> None:
+        self.mods = ModStorage()
+        self.log = log
+        self.emit = emit
+        self.emit_error = emit_error
+
+    def discover_mods(self) -> None :
+        paths = (
+            Path("core/default_mod"), 
+            Path("mods/default"), 
+            Path("mods")
+            )
+        for path in paths :
+            if not path.exists(): 
+                continue
+            if not path.is_dir(): 
+                continue
+            for mod_dir in path.iterdir():
+                if not mod_dir.exists() :
+                    continue
+                if not mod_dir.is_dir():
+                    continue
+                mod_name = mod_dir.name
+                if mod_name[:4] != "mod_" :
+                    continue
+                mod_manifest = mod_dir / "manifest.json"
+                if not mod_manifest.exists() :
+                    continue
+                self.mods.paths[mod_name] = mod_dir
+                self.mods.states[mod_name] = "discovered"
+                self.mods.errors[mod_name] = []
+                self.emit(MOD_DISCOVERED, {"mod": mod_name, "path": str(mod_dir)})
+                self.log(INFO, f"{mod_name} discover")

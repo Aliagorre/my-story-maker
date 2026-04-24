@@ -1,6 +1,5 @@
 # core/test.py
 
-from core.event_bus import EventBus
 from core.service_registry import ServiceRegistry
 
 # ============================
@@ -46,13 +45,15 @@ assert not service_registry.register("test6.2", None)       , "test6.2 not pass 
 # Test EventBus 
 # ============================
 
+from core.event_bus import EventBus
+
 event_bus = EventBus(mocks_log, mocks_emit)
 def subscribe7() : print("subscribe7")
 assert event_bus.subscribe("MOD_ERROR", subscribe7), "test7.1 : subscribe7 must be subscribe"
 print("test7.2 : go see the logs")
 
 def subscribe8() : print("subscribe8")
-assert event_bus.subscribe("UNKNOWN", subscribe8), "test8.1 : subscribe8 must not be subscribe"
+assert not event_bus.subscribe("UNKNOWN", subscribe8), "test8.1 : subscribe8 must not be subscribe"
 print("test8.2 : go see the logs")
 
 assert event_bus.emit({"name":"MOD_ERROR","source":"test","payload":{},"timestamp": 0}),"test9.1 : must print subscribe7"
@@ -66,3 +67,55 @@ assert event_bus.unsubscribe("MOD_ERROR", subscribe10)   , "test 11.1 : subscrib
 assert event_bus.unsubscribe("MOD_ERROR", subscribe7)    , "test 11.2 : subscribe7 must unsubscribe"
 assert not event_bus.unsubscribe("MOD_ERROR", subscribe8), "test 11.3 : unknown handlers can't unsubscribe"
 print("test11.4 : go see the logs")
+
+import asyncio
+
+
+async def async_handler(event):
+    print("async handler OK")
+
+event_bus.subscribe("MOD_ERROR", async_handler)
+
+async def test_async():
+    event = {"name":"MOD_ERROR","source":"test","payload":{},"timestamp":0}
+    event_bus.emit(event)
+    await asyncio.sleep(0.1)
+
+asyncio.run(test_async())
+
+# ============================
+# Test ModStorage 
+# ============================
+
+from pathlib import Path
+
+from core.__mod_storage import ModStorage
+
+mod_storage = ModStorage()
+
+assert mod_storage.manifests == {}
+assert mod_storage.states == {}
+assert mod_storage.instances == {}
+assert mod_storage.paths == {}
+assert mod_storage.errors == {}
+assert mod_storage.dependencies == {}
+assert mod_storage.conflicts == {}
+assert mod_storage.load_order == []
+
+mod_storage.manifests["mod_test"] = {"name": "mod_test"}
+mod_storage.states["mod_test"] = "enable"
+mod_storage.instances["mod_test"] = object()
+mod_storage.paths["mod_test"] = Path("mods/mod_test")
+mod_storage.errors["mod_test"] = []
+mod_storage.dependencies["mod_test"] = ["mod_core"]
+mod_storage.conflicts["mod_test"] = []
+mod_storage.load_order.append("mod_test")
+
+assert mod_storage.manifests["mod_test"]["name"] == "mod_test"
+assert mod_storage.states["mod_test"] == "enable"
+assert isinstance(mod_storage.instances["mod_test"], object)
+assert mod_storage.paths["mod_test"] == Path("mods/mod_test")
+assert mod_storage.dependencies["mod_test"] == ["mod_core"]
+assert mod_storage.load_order == ["mod_test"]
+assert mod_storage.load_order == ["mod_test"]
+assert mod_storage.load_order == ["mod_test"]
