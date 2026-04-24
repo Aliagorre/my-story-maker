@@ -1,6 +1,7 @@
 */*/__pycache__/
 */__pycache__/
 __pycache__/
+old_prototype/
 pyproject.toml
 .vscode/
 .venv/
