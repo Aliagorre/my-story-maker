@@ -119,3 +119,27 @@ assert mod_storage.dependencies["mod_test"] == ["mod_core"]
 assert mod_storage.load_order == ["mod_test"]
 assert mod_storage.load_order == ["mod_test"]
 assert mod_storage.load_order == ["mod_test"]
+
+"""Test 1 — JSON valide minimal
+→ doit passer.
+
+Test 2 — JSON invalide
+→ désactivation + MOD_MANIFEST_ERROR.
+
+Test 3 — champ manquant
+→ désactivation.
+
+Test 4 — SemVer invalide
+→ désactivation.
+
+Test 5 — entrypoint inexistant
+→ désactivation.
+
+Test 6 — type invalide
+→ désactivation.
+
+Test 7 — requires mal formé
+→ désactivation.
+
+Test 8 — conflicts mal formé
+→ désactivation."""

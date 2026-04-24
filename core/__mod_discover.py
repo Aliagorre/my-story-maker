@@ -10,12 +10,11 @@ from LOG_LEVELS import INFO
 
 class ModDiscover :
     def __init__(self, log:Callable, emit_error:Callable, emit:Callable) -> None:
-        self.mods = ModStorage()
         self.log = log
         self.emit = emit
         self.emit_error = emit_error
 
-    def discover_mods(self) -> None :
+    def discover_mods(self, mod_storage : ModStorage) -> None :
         paths = (
             Path("core/default_mod"), 
             Path("mods/default"), 
@@ -37,8 +36,8 @@ class ModDiscover :
                 mod_manifest = mod_dir / "manifest.json"
                 if not mod_manifest.exists() :
                     continue
-                self.mods.paths[mod_name] = mod_dir
-                self.mods.states[mod_name] = "discovered"
-                self.mods.errors[mod_name] = []
+                mod_storage.paths[mod_name] = mod_dir
+                mod_storage.states[mod_name] = "discovered"
+                mod_storage.errors[mod_name] = []
                 self.emit(MOD_DISCOVERED, {"mod": mod_name, "path": str(mod_dir)})
                 self.log(INFO, f"{mod_name} discover")

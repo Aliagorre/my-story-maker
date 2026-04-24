@@ -1,11 +1,13 @@
 # core/mod_loader.py
 import importlib.util
-import pathlib
 import json
+import pathlib
 import sys
-from typing import Dict, Any, List
-from core.errors import EngineError
+from typing import Any, Dict, List
+
 from core.context import Context, RegistrationContext
+from core.errors import EngineError
+
 
 class ModLoader:
     def __init__(self, context: Context):
@@ -178,5 +180,9 @@ class ModLoader:
             visited[name] = "done"
             resolved.append(mod)
         for mod in mods_by_name.values():
+            visit(mod)
+        return resolved
+            visit(mod)
+        return resolved
             visit(mod)
         return resolved
