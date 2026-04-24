@@ -2,7 +2,7 @@
 
 from typing import Any, Callable
 
-from EVENTS import MOD_CONFLICT, MOD_ERROR
+from EVENTS import MOD_ERROR
 from LOG_LEVELS import DEBUG, ERROR, INFO
 
 
