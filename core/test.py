@@ -1,10 +1,12 @@
 # core/test.py
 
 import asyncio
+import shutil
 import tempfile
 from pathlib import Path
 
 from core.__dependency import DependencyModule
+from core.__dynamic_loader import DynamicLoader
 from core.__manifest import (
     ManifestModule,
     ManifestProcessor,
@@ -402,5 +404,191 @@ DependencyModule(mocks_log, mocks_emit).run(storage)
 order = storage.load_order
 # B doit rester avant A (dépendance)
 assert order.index("B") < order.index("A")
+
+
+# =========================
+# DUMMY CORE + STORAGE
+# =========================
+
+class DummyCore:
+    def __init__(self):
+        self.events = []
+
+    def emit(self, event, payload):
+        self.events.append((event, payload))
+
+    def subscribe(self, *args, **kwargs):
+        pass
+
+    def register_service(self, *args, **kwargs):
+        pass
+
+    def get_service(self, *args, **kwargs):
+        return None
+
+    def get_manifest(self, *args, **kwargs):
+        return None
+
+    def log(self, *args, **kwargs):
+        pass
+
+logs = []
+errors = []
+events = []
+
+def log(level, msg):
+    logs.append((level, msg))
+
+def emit_error(event, payload):
+    errors.append((event, payload))
+
+def emit(event, payload):
+    events.append((event, payload))
+
+def write_mod(tmpdir, name, code):
+    mod_dir = tmpdir / name
+    mod_dir.mkdir()
+    file = mod_dir / "main.py"
+    file.write_text(code)
+    return mod_dir
+
+def make_manifest():
+    return {
+        "entrypoint": "main.py",
+        "version": Version.parse("1.0.0")
+    }
+
+tmp = Path(tempfile.mkdtemp())
+
+try:
+
+    # 1. SUCCESS LOAD
+
+    storage = ModStorage()
+    core = DummyCore()
+    code = """
+class Mod:
+    def on_load(self, core): pass
+    def on_init(self): pass
+    def on_ready(self): pass
+    def on_shutdown(self): pass
+"""
+    path = write_mod(tmp, "mod_ok", code)
+    storage.paths["mod_ok"] = path
+    storage.manifests["mod_ok"] = make_manifest()
+    storage.states["mod_ok"] = "enable"
+    storage.load_order = ["mod_ok"]
+    DynamicLoader(core, log, emit_error, emit).run_dynamic_loading(storage)
+    assert storage.instances["mod_ok"] is not None
+    assert any(e[0] == "MOD_LOADED" for e in events)
+
+    # 2. ENTRYPOINT MISSING
+
+    storage = ModStorage()
+    events.clear()
+    storage.paths["mod_bad"] = tmp
+    storage.manifests["mod_bad"] = {"entrypoint": "missing.py", "version": Version.parse("1.0.0")}
+    storage.states["mod_bad"] = "enable"
+    storage.load_order = ["mod_bad"]
+    DynamicLoader(core, log, emit_error, emit).run_dynamic_loading(storage)
+    assert storage.states["mod_bad"] == "disable"
+    assert storage.instances.get("mod_bad") is None
+
+    # 3. INVALID CLASS NAME
+
+    storage = ModStorage()
+    code = """
+class NotMod:
+    pass
+"""
+    path = write_mod(tmp, "mod_noclass", code)
+    storage.paths["mod_noclass"] = path
+    storage.manifests["mod_noclass"] = make_manifest()
+    storage.states["mod_noclass"] = "enable"
+    storage.load_order = ["mod_noclass"]
+    DynamicLoader(core, log, emit_error, emit).run_dynamic_loading(storage)
+    assert storage.states["mod_noclass"] == "disable"
+
+    # 4. BAD CONSTRUCTOR
+
+    storage = ModStorage()
+    code = """
+class Mod:
+    def __init__(self, x): pass
+    def on_load(self, core): pass
+    def on_init(self): pass
+    def on_ready(self): pass
+    def on_shutdown(self): pass
+"""
+    path = write_mod(tmp, "mod_ctor", code)
+    storage.paths["mod_ctor"] = path
+    storage.manifests["mod_ctor"] = make_manifest()
+    storage.states["mod_ctor"] = "enable"
+    storage.load_order = ["mod_ctor"]
+    DynamicLoader(core, log, emit_error, emit).run_dynamic_loading(storage)
+    assert storage.states["mod_ctor"] == "disable"
+
+    # 5. MISSING HOOK
+
+    storage = ModStorage()
+    code = """
+class Mod:
+    def on_load(self, core): pass
+"""
+    path = write_mod(tmp, "mod_hook", code)
+    storage.paths["mod_hook"] = path
+    storage.manifests["mod_hook"] = make_manifest()
+    storage.states["mod_hook"] = "enable"
+    storage.load_order = ["mod_hook"]
+    DynamicLoader(core, log, emit_error, emit).run_dynamic_loading(storage)
+    assert storage.states["mod_hook"] == "disable"
+
+    # 6. on_load EXCEPTION
+
+    storage = ModStorage()
+
+    code = """
+class Mod:
+    def on_load(self, core): raise Exception("fail")
+    def on_init(self): pass
+    def on_ready(self): pass
+    def on_shutdown(self): pass
+"""
+    path = write_mod(tmp, "mod_crash", code)
+    storage.paths["mod_crash"] = path
+    storage.manifests["mod_crash"] = make_manifest()
+    storage.states["mod_crash"] = "enable"
+    storage.load_order = ["mod_crash"]
+    DynamicLoader(core, log, emit_error, emit).run_dynamic_loading(storage)
+    assert storage.states["mod_crash"] == "disable"
+
+    # 7. MULTI MOD LOAD ORDER
+
+    storage = ModStorage()
+    events.clear()
+    code = """
+class Mod:
+    def on_load(self, core): pass
+    def on_init(self): pass
+    def on_ready(self): pass
+    def on_shutdown(self): pass
+"""
+    path1 = write_mod(tmp, "mod1", code)
+    path2 = write_mod(tmp, "mod2", code)
+    storage.paths["mod1"] = path1
+    storage.paths["mod2"] = path2
+    storage.manifests["mod1"] = make_manifest()
+    storage.manifests["mod2"] = make_manifest()
+    storage.states["mod1"] = "enable"
+    storage.states["mod2"] = "enable"
+    storage.load_order = ["mod1", "mod2"]
+    DynamicLoader(core, log, emit_error, emit).run_dynamic_loading(storage)
+    assert storage.instances["mod1"] is not None
+    assert storage.instances["mod2"] is not None
+    loaded = [e[1]["mod"] for e in events if e[0] == "MOD_LOADED"]
+    assert loaded == ["mod1", "mod2"]
+finally:
+    shutil.rmtree(tmp)
+
 
 print("ALL TESTS PASSED")
