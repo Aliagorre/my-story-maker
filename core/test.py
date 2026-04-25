@@ -1,8 +1,15 @@
 # core/test.py
 
 import asyncio
+import tempfile
 from pathlib import Path
 
+from core.__manifest import (
+    ManifestModule,
+    ManifestProcessor,
+    ManifestReader,
+    ManifestValidator,
+)
 from core.__mod_storage import ModStorage
 from core.__version import (
     ConstraintParser,
@@ -144,26 +151,140 @@ c4 = ConstraintParser.parse("1.2.3")
 assert ConstraintResolver.satisfies(Version.parse("1.2.3"), c4)
 assert not ConstraintResolver.satisfies(Version.parse("1.2.4"), c4)
 
-"""Test 1 — JSON valide minimal
-→ doit passer.
 
-Test 2 — JSON invalide
-→ désactivation + MOD_MANIFEST_ERROR.
+# ==========================
+# Manifest
+# ==========================
 
-Test 3 — champ manquant
-→ désactivation.
+with tempfile.TemporaryDirectory() as tmp:
+    tmp_dir = Path(tmp)
 
-Test 4 — SemVer invalide
-→ désactivation.
+    # 1. ManifestReader
 
-Test 5 — entrypoint inexistant
-→ désactivation.
+    mod_dir = tmp_dir / "mod_reader"
+    mod_dir.mkdir()
+    manifest_file = mod_dir / "manifest.json"
+    manifest_file.write_text('{"name": "mod_test", "version": "1.0.0"}')
+    result = ManifestReader.read(mod_dir)
+    assert isinstance(result, dict)
+    assert result["name"] == "mod_test"
+    manifest_file.write_text("{ invalid json }")
+    result = ManifestReader.read(mod_dir)
+    assert result == {}
+    manifest_file.write_text('["a"]')
+    result = ManifestReader.read(mod_dir)
+    assert result == {}
 
-Test 6 — type invalide
-→ désactivation.
+    # 2. ManifestValidator
 
-Test 7 — requires mal formé
-→ désactivation.
+    valid_dir = tmp_dir / "mod_valid"
+    valid_dir.mkdir()
+    (valid_dir / "main.py").write_text("")
 
-Test 8 — conflicts mal formé
-→ désactivation."""
+    valid_manifest = {
+        "name": "mod_valid",
+        "version": "1.0.0",
+        "entrypoint": "main.py",
+        "type": "default",
+        "priority": 1,
+        "requires": {},
+        "conflicts": {},
+        "permissions": []
+    }
+
+    errors = ManifestValidator.validate(valid_manifest, valid_dir)
+    assert errors == []
+
+    errors = ManifestValidator.validate({}, valid_dir)
+    assert "miss name" in errors
+    assert "miss version" in errors
+    assert "miss entrypoint" in errors
+    assert "miss type" in errors
+    assert "miss priority" in errors
+    assert "miss requires " in errors
+    assert "miss conflicts" in errors
+    assert "miss permissions" in errors
+
+    invalid_manifest = {
+        "name": 123,
+        "version": 1,
+        "entrypoint": "main.py",
+        "type": "unknown",
+        "priority": "high",
+        "requires": [],
+        "conflicts": [],
+        "permissions": {}
+    }
+
+    errors = ManifestValidator.validate(invalid_manifest, valid_dir)
+    assert "name isn't str" in errors
+    assert "version isn't str" in errors
+    assert "unknown type don't exist" in errors
+    assert "priority isn't int" in errors
+    assert "requires isn't dict" in errors
+    assert "conflicts isn't dict" in errors
+    assert "permissions isn't list" in errors
+
+    bad_manifest = valid_manifest.copy()
+    bad_manifest["entrypoint"] = "missing.py"
+    errors = ManifestValidator.validate(bad_manifest, valid_dir)
+    assert any("don't exist" in e for e in errors)
+
+    # 3. ManifestProcessor
+
+    storage = ModStorage()
+
+    ManifestProcessor.store("mod_a", valid_manifest, storage, [])
+    assert storage.states["mod_a"] == "enable"
+    ManifestProcessor.store("mod_b", valid_manifest, storage, ["error"])
+    assert storage.states["mod_b"] == "disable"
+    m = valid_manifest.copy()
+    m["active"] = False
+    ManifestProcessor.store("mod_c", m, storage, [])
+    assert storage.states["mod_c"] == "disable"
+    m["active"] = True
+    ManifestProcessor.store("mod_d", m, storage, [])
+    assert storage.states["mod_d"] == "enable"
+    m["active"] = "off"
+    ManifestProcessor.store("mod_e", m, storage, [])
+    assert storage.states["mod_e"] == "disable"
+    m["active"] = "random"
+    ManifestProcessor.store("mod_f", m, storage, [])
+    assert storage.states["mod_f"] == "enable"
+
+    # 4. ManifestModule (integration)
+
+    logs = []
+    emitted = []
+    storage = ModStorage()
+    mod1 = tmp_dir / "mod1"
+    mod1.mkdir()
+    (mod1 / "main.py").write_text("")
+    (mod1 / "manifest.json").write_text("""
+    {
+        "name": "mod_mod1",
+        "version": "1.0.0",
+        "entrypoint": "main.py",
+        "type": "default",
+        "priority": 1,
+        "requires": {},
+        "conflicts": {},
+        "permissions": []
+    }
+    """)
+    mod2 = tmp_dir / "mod2"
+    mod2.mkdir()
+    (mod2 / "manifest.json").write_text("{ invalid json }")
+    storage.states["mod1"] = "discovered"
+    storage.paths["mod1"] = mod1
+    storage.states["mod2"] = "discovered"
+    storage.paths["mod2"] = mod2
+    module = ManifestModule(mocks_log, mocks_emit)
+    module.run_manifest_pipeline(storage)
+
+    assert storage.states["mod1"] == "enable"
+    assert storage.states["mod2"] == "disable"
+    assert "mod1" in storage.manifests
+    assert len(emitted) >= 1
+
+print("ALL TESTS PASSED")
