@@ -151,13 +151,11 @@ core.log(level, message)
 
 ---
 
-## **Future Extensions**
+## **Future Extensions** 
 
-* Mod marketplace
-* AI assistant integration
-* Analytics tools
-* Cloud synchronization
-* VR/AR support
+* Mod marketplace (My dream)
+* AI assistant integration (My friend's dream)
+* Analytics tools 
 * Audio engine
 
 ---
