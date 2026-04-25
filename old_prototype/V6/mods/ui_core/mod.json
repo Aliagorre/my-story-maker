@@ -1,8 +1,0 @@
-{
-  "name": "ui_core",
-  "depends": [],
-  "description": "Gestion des screens et fenêtres — toolkit agnostic",
-  "version": "1.0.0",
-  "active": true,
-  "type" : "system"
-}

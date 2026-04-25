@@ -1,1 +1,0 @@
-{'Noyau': ['où_est_guide_1', 'objectif_1'], 'où_est_guide_1': ['objectif_1'], 'objectif_1': ['qui_peut_aider_1', 'objectif_alganie_1'], 'qui_peut_aider_1': ['objectif_alganie_1'], 'objectif_alganie_1': ['explorer_marsène_1'], 'explorer_marsène_1': []}

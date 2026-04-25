@@ -1,8 +1,0 @@
-{
-  "name": "player",
-  "depends": [],
-  "version": "1.0.0",
-  "active": true,
-  "description": "Une librairy pour initialiser un grand nombre de variable util",
-  "type": "library"
-}

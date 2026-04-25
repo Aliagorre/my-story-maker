@@ -1,8 +1,0 @@
-{
-  "name": "auto_complete",
-  "depends": ["cmd"],
-  "description": "Autocomplétion Tab des commandes CLI",
-  "version": "1.0.0",
-  "type": "system",
-  "active": true
-}

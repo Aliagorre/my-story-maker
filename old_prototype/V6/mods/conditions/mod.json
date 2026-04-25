@@ -1,8 +1,0 @@
-{
-  "name": "conditions",
-  "depends": [],
-  "version": "1.0.0",
-  "active" : true,
-  "description": "Opérateurs de base du ConditionEngine",
-  "type": "operator"
-}

@@ -1,8 +1,0 @@
-{
-  "name": "debug",
-  "depends": ["styled_text", "cmd"],
-  "description" : "offre des option de debug",
-  "version": "1.0.0",
-  "type":"system",
-  "active": true
-}

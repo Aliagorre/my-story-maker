@@ -1,8 +1,0 @@
-{
-  "name": "random",
-  "depends": [],
-  "version": "1.0.0",
-  "active" : true,
-  "description": "Défénit des opérations et action aléatoire",
-  "type": "operator"
-}

@@ -1,8 +1,0 @@
-{
-  "name": "ui_menu_cli",
-  "depends": ["cmd", "styled_text"],
-  "version": "1.0.2",
-  "active" : true,
-  "description": "Un mod pour avoir des menus basic",
-  "type": "interface"
-}

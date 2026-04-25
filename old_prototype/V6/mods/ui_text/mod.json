@@ -1,8 +1,0 @@
-{
-  "name": "ui_text",
-  "depends": ["styled_text"],
-  "version": "1.0.2",
-  "active" : true,
-  "description": "Un mod pour afficher des UIs simple dans le terminal",
-  "type": "interface"
-}

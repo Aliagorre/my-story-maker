@@ -1,8 +1,0 @@
-{
-  "name": "styled_text",
-  "depends": [],
-  "version": "1.0.3",
-  "active" : true,
-  "description": "Système de couleurs, styles, cadres ASCII et logger.",
-  "type": "system"
-}
