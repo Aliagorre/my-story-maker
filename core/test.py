@@ -107,7 +107,7 @@ assert mod_storage.states == {}
 assert mod_storage.instances == {}
 assert mod_storage.paths == {}
 assert mod_storage.errors == {}
-assert mod_storage.requires == {}
+assert mod_storage.dependencies == {}
 assert mod_storage.conflicts == {}
 assert mod_storage.load_order == []
 
@@ -116,7 +116,7 @@ mod_storage.states["mod_test"] = "enable"
 mod_storage.instances["mod_test"] = object()
 mod_storage.paths["mod_test"] = Path("mods/mod_test")
 mod_storage.errors["mod_test"] = []
-mod_storage.requires["mod_test"] = ["mod_core"]
+mod_storage.dependencies["mod_test"] = ["mod_core"]
 mod_storage.conflicts["mod_test"] = []
 mod_storage.load_order.append("mod_test")
 
@@ -124,7 +124,7 @@ assert mod_storage.manifests["mod_test"]["name"] == "mod_test"
 assert mod_storage.states["mod_test"] == "enable"
 assert isinstance(mod_storage.instances["mod_test"], object)
 assert mod_storage.paths["mod_test"] == Path("mods/mod_test")
-assert mod_storage.requires["mod_test"] == ["mod_core"]
+assert mod_storage.dependencies["mod_test"] == ["mod_core"]
 assert mod_storage.load_order == ["mod_test"]
 assert mod_storage.load_order == ["mod_test"]
 assert mod_storage.load_order == ["mod_test"]

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Callable
 
 from core.__mod_storage import ModStorage
-from core.__version import Version
+from core.__version import ConstraintParser, Version
 from EVENTS import MOD_MANIFEST_ERROR
 from LOG_LEVELS import DEBUG
 
@@ -141,7 +141,10 @@ class ManifestProcessor :
         else :
             mod_storage.states[mod_name] = "enable"
         mod_storage.errors[mod_name] = errors
+        parsed_version = Version.parse(manifest["version"])
+        manifest["version"] = parsed_version
+        for dep, constraint in manifest["requires"].items():
+            manifest["requires"][dep] = ConstraintParser.parse(constraint)
+        for dep, constraint in manifest["conflicts"].items():
+            manifest["conflicts"][dep] = ConstraintParser.parse(constraint)
         mod_storage.manifests[mod_name] = manifest
-        mod_storage.requires[mod_name] = manifest["requires"]
-        mod_storage.conflicts[mod_name] = manifest["conflicts"]
-        manifest["version"] = Version.parse(manifest["version"])
