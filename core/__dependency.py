@@ -118,7 +118,7 @@ class PrioritySorter:
         )
 
 class DependencyModule:
-    def __init__(self, emit_error, log):
+    def __init__(self, log, emit_error):
         self.emit_error = emit_error
         self.log = log
 

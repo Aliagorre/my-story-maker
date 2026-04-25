@@ -315,7 +315,7 @@ storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}),
     "B": make_mod("B", "1.0.0")}
 storage.states = {"A": "enable","B": "enable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "enable"
 assert storage.states["B"] == "enable"
 assert "A" in storage.load_order
@@ -327,7 +327,7 @@ errors.clear()
 storage = ModStorage()
 storage.manifests = {"A": make_mod("A", "1.0.0", {"B": "*"})}
 storage.states = {"A": "enable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "disable"
 assert any(e[0] == "MOD_DEPENDENCY_ERROR" for e in errors)
 
@@ -339,7 +339,7 @@ storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}),
     "B": make_mod("B", "1.0.0")}
 storage.states = {"A": "enable","B": "disable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "disable"
 
 # VERSION INCOMPATIBLE
@@ -350,7 +350,7 @@ storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": ">=2.0.0"}),
     "B": make_mod("B", "1.0.0")}
 storage.states = {"A": "enable","B": "enable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "disable"
 
 # CONFLICT
@@ -361,7 +361,7 @@ storage.manifests = {
     "A": make_mod("A", "1.0.0", conflicts={"B": "*"}),
     "B": make_mod("B", "1.0.0")}
 storage.states = {"A": "enable","B": "enable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "disable"
 assert any(e[0] == "MOD_CONFLICT" for e in errors)
 
@@ -373,7 +373,7 @@ storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}),
     "B": make_mod("B", "1.0.0", {"A": "*"})}
 storage.states = {"A": "enable","B": "enable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "disable"
 assert storage.states["B"] == "disable"
 
@@ -386,7 +386,7 @@ storage.manifests = {
     "C": make_mod("C", "1.0.0")
 }
 storage.states = {"A": "enable","B": "enable","C": "enable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 order = storage.load_order
 assert order.index("C") < order.index("B")
 assert order.index("B") < order.index("A")
@@ -398,7 +398,7 @@ storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}, priority=10),
     "B": make_mod("B", "1.0.0", priority=0)}
 storage.states = {"A": "enable","B": "enable"}
-DependencyModule(mocks_emit, mocks_log).run(storage)
+DependencyModule(mocks_log, mocks_emit).run(storage)
 order = storage.load_order
 # B doit rester avant A (dépendance)
 assert order.index("B") < order.index("A")
