@@ -4,6 +4,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 
+from core.__dependency import DependencyModule
 from core.__manifest import (
     ManifestModule,
     ManifestProcessor,
@@ -286,5 +287,120 @@ with tempfile.TemporaryDirectory() as tmp:
     assert storage.states["mod2"] == "disable"
     assert "mod1" in storage.manifests
     assert len(emitted) >= 1
+
+# =========================
+# Dependency
+# =========================
+
+
+def make_mod(name, version, requires=None, conflicts=None, priority=0):
+    return {
+        "name": name,
+        "version": Version.parse(version),
+        "requires": {
+            k: ConstraintParser.parse(v)
+            for k, v in (requires or {}).items()
+        },
+        "conflicts": {
+            k: ConstraintParser.parse(v)
+            for k, v in (conflicts or {}).items()
+        },
+        "priority": priority
+    }
+
+#  DEPENDENCY OK
+
+storage = ModStorage()
+storage.manifests = {
+    "A": make_mod("A", "1.0.0", {"B": "*"}),
+    "B": make_mod("B", "1.0.0")}
+storage.states = {"A": "enable","B": "enable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+assert storage.states["A"] == "enable"
+assert storage.states["B"] == "enable"
+assert "A" in storage.load_order
+assert "B" in storage.load_order
+
+# MISSING DEPENDENCY
+
+errors.clear()
+storage = ModStorage()
+storage.manifests = {"A": make_mod("A", "1.0.0", {"B": "*"})}
+storage.states = {"A": "enable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+assert storage.states["A"] == "disable"
+assert any(e[0] == "MOD_DEPENDENCY_ERROR" for e in errors)
+
+# DISABLED DEPENDENCY
+
+errors.clear()
+storage = ModStorage()
+storage.manifests = {
+    "A": make_mod("A", "1.0.0", {"B": "*"}),
+    "B": make_mod("B", "1.0.0")}
+storage.states = {"A": "enable","B": "disable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+assert storage.states["A"] == "disable"
+
+# VERSION INCOMPATIBLE
+
+errors.clear()
+storage = ModStorage()
+storage.manifests = {
+    "A": make_mod("A", "1.0.0", {"B": ">=2.0.0"}),
+    "B": make_mod("B", "1.0.0")}
+storage.states = {"A": "enable","B": "enable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+assert storage.states["A"] == "disable"
+
+# CONFLICT
+
+errors.clear()
+storage = ModStorage()
+storage.manifests = {
+    "A": make_mod("A", "1.0.0", conflicts={"B": "*"}),
+    "B": make_mod("B", "1.0.0")}
+storage.states = {"A": "enable","B": "enable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+assert storage.states["A"] == "disable"
+assert any(e[0] == "MOD_CONFLICT" for e in errors)
+
+#  CYCLE DETECTION
+
+errors.clear()
+storage = ModStorage()
+storage.manifests = {
+    "A": make_mod("A", "1.0.0", {"B": "*"}),
+    "B": make_mod("B", "1.0.0", {"A": "*"})}
+storage.states = {"A": "enable","B": "enable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+assert storage.states["A"] == "disable"
+assert storage.states["B"] == "disable"
+
+#  TOPO ORDER
+
+storage = ModStorage()
+storage.manifests = {
+    "A": make_mod("A", "1.0.0", {"B": "*"}),
+    "B": make_mod("B", "1.0.0", {"C": "*"}),
+    "C": make_mod("C", "1.0.0")
+}
+storage.states = {"A": "enable","B": "enable","C": "enable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+order = storage.load_order
+assert order.index("C") < order.index("B")
+assert order.index("B") < order.index("A")
+
+#  PRIORITY (SANS CASSER TOPO)
+
+storage = ModStorage()
+storage.manifests = {
+    "A": make_mod("A", "1.0.0", {"B": "*"}, priority=10),
+    "B": make_mod("B", "1.0.0", priority=0)}
+storage.states = {"A": "enable","B": "enable"}
+DependencyModule(mocks_emit, mocks_log).run(storage)
+order = storage.load_order
+# B doit rester avant A (dépendance)
+assert order.index("B") < order.index("A")
 
 print("ALL TESTS PASSED")
