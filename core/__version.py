@@ -1,8 +1,9 @@
+# core/__version.py
+
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
 Segment = Union[int, str]  # int oder "*"
-
 
 @dataclass(frozen=True)
 class Version:
@@ -28,16 +29,15 @@ class Version:
     def as_tuple(self) -> Tuple[Segment, Segment, Segment]:
         return (self.major, self.minor, self.patch)
 
-
 class VersionComparator:
     @staticmethod
     def compare(a: Version, b: Version) -> int:
         for sa, sb in zip(a.as_tuple(), b.as_tuple()):
             if sa == "*" or sb == "*":
                 continue
-            if sa < sb:
+            if sa < sb: # type: ignore
                 return -1
-            if sa > sb:
+            if sa > sb: # type: ignore
                 return 1
         return 0
 
@@ -45,12 +45,10 @@ class VersionComparator:
     def equals(a: Version, b: Version) -> bool:
         return VersionComparator.compare(a, b) == 0
 
-
 @dataclass(frozen=True)
 class Condition:
     op: str
     target: Optional[Version] = None
-
 
 class ConstraintParser:
     @staticmethod
@@ -80,10 +78,9 @@ class ConstraintParser:
                 target_str = part.strip()
             if op != "*" and not target_str:
                 raise ValueError(f"Fehlende Zielversion in Bedingung: {part!r}")
-            target = None if op == "*" else Version.parse(target_str)
+            target = None if op == "*" else Version.parse(target_str) # type: ignore
             conditions.append(Condition(op=op, target=target))
         return conditions
-
 
 class ConstraintResolver:
     @staticmethod
@@ -104,13 +101,12 @@ class ConstraintResolver:
         if condition.op == "<=":
             return cmp in (0, -1)
         raise ValueError(f"Unbekannter Operator: {condition.op!r}")
+    
     @staticmethod
     def satisfies(version: Version, constraints: Union[str, List[Condition]]) -> bool:
         if constraints == "*":
             return True
         for condition in constraints:
-            if not ConstraintResolver.check_condition(version, condition):
+            if not ConstraintResolver.check_condition(version, condition): # type: ignore
                 return False
         return True
-
-
