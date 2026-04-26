@@ -8,7 +8,7 @@ from EVENTS import MOD_DISCOVERED
 from LOG_LEVELS import INFO
 
 
-class ModDiscover :
+class ModDiscovery :
     def __init__(self, log:Callable, emit_error:Callable, emit:Callable) -> None:
         self.log = log
         self.emit = emit
@@ -16,7 +16,7 @@ class ModDiscover :
 
     def discover_mods(self, mod_storage : ModStorage) -> None :
         paths = (
-            Path("core/default_mod"), 
+            Path("core/default_mods"), 
             Path("mods/default"), 
             Path("mods")
             )
