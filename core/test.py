@@ -9,7 +9,7 @@ from core.__dependency import DependencyModule
 from core.__dynamic_loader import DynamicLoader
 from core.__lifecycle import InitExecutor, ReadyExecutor, ShutdownExecutor
 from core.__manifest import (
-    ManifestModule,
+    ManifestLoader,
     ManifestProcessor,
     ManifestReader,
     ManifestValidator,
@@ -256,7 +256,7 @@ with tempfile.TemporaryDirectory() as tmp:
     ManifestProcessor.store("mod_f", m, storage, [])
     assert storage.states["mod_f"] == "enable"
 
-    # 4. ManifestModule (integration)
+    # 4. ManifestLoader (integration)
 
     logs = []
     emitted = []
@@ -283,7 +283,7 @@ with tempfile.TemporaryDirectory() as tmp:
     storage.paths["mod1"] = mod1
     storage.states["mod2"] = "discovered"
     storage.paths["mod2"] = mod2
-    module = ManifestModule(mocks_log, mocks_emit)
+    module = ManifestLoader(mocks_log, mocks_emit)
     module.run_manifest_pipeline(storage)
 
     assert storage.states["mod1"] == "enable"
@@ -470,7 +470,7 @@ try:
     code = """
 class Mod:
     def on_load(self, core): pass
-    def on_init(self): pass
+    def on_init(self, core): pass
     def on_ready(self): pass
     def on_shutdown(self): pass
 """
@@ -517,7 +517,7 @@ class NotMod:
 class Mod:
     def __init__(self, x): pass
     def on_load(self, core): pass
-    def on_init(self): pass
+    def on_init(self, core): pass
     def on_ready(self): pass
     def on_shutdown(self): pass
 """
@@ -551,7 +551,7 @@ class Mod:
     code = """
 class Mod:
     def on_load(self, core): raise Exception("fail")
-    def on_init(self): pass
+    def on_init(self, core): pass
     def on_ready(self): pass
     def on_shutdown(self): pass
 """
@@ -570,7 +570,7 @@ class Mod:
     code = """
 class Mod:
     def on_load(self, core): pass
-    def on_init(self): pass
+    def on_init(self, core): pass
     def on_ready(self): pass
     def on_shutdown(self): pass
 """
