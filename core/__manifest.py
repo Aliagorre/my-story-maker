@@ -10,7 +10,7 @@ from EVENTS import MOD_MANIFEST_ERROR
 from LOG_LEVELS import DEBUG
 
 
-class ManifestModule :
+class ManifestLoader :
     def __init__(self, log : Callable, emit_error : Callable ) -> None:
         self.log = log
         self.emit_error = emit_error
