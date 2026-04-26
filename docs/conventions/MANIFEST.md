@@ -296,8 +296,8 @@ If validation fails:
 | `type`        | ✔        | Mod type              |
 | `priority`    | ✔        | Load priority         |
 | `entrypoint`  | ✔        | Main file             |
-| `requires`    | ✖        | Dependencies          |
-| `conflicts`   | ✖        | Incompatibilities     |
+| `requires`    | ✔        | Dependencies          |
+| `conflicts`   | ✔        | Incompatibilities     |
 | `permissions` | ✖        | Requested permissions |
 | `description` | ✖        | Description           |
 | `author`      | ✖        | Author                |
