@@ -7,6 +7,7 @@ from pathlib import Path
 
 from core.__dependency import DependencyModule
 from core.__dynamic_loader import DynamicLoader
+from core.__lifecycle import InitExecutor, ReadyExecutor, ShutdownExecutor
 from core.__manifest import (
     ManifestModule,
     ManifestProcessor,
@@ -590,5 +591,130 @@ class Mod:
 finally:
     shutil.rmtree(tmp)
 
+# =========================
+# DUMMY CORE + STORAGE
+# =========================
+
+logs = []
+errors = []
+events = []
+
+# DUMMY MODS
+class GoodMod:
+    def __init__(self):
+        self.init_called = False
+        self.shutdown_called = False
+    def on_load(self, core): pass
+    def on_init(self, core):
+        self.init_called = True
+    def on_ready(self): pass
+    def on_shutdown(self, core):
+        self.shutdown_called = True
+
+class CrashInitMod(GoodMod):
+    def on_init(self, core):
+        raise Exception("init fail")
+class CrashShutdownMod(GoodMod):
+    def on_shutdown(self, core):
+        raise Exception("shutdown fail")
+
+# 1. INIT SUCCESS
+
+storage = ModStorage()
+core = DummyCore()
+mod = GoodMod()
+storage.instances["A"] = mod
+storage.states["A"] = "enable"
+storage.errors["A"] = []
+storage.load_order = ["A"]
+InitExecutor(core, log, emit_error, emit).run_on_init(storage)
+assert mod.init_called is True
+assert any(e[0] == "MOD_INITIALIZED" for e in events)
+
+# 2. INIT FAILURE
+
+errors.clear()
+events.clear()
+storage = ModStorage()
+mod = CrashInitMod()
+storage.instances["A"] = mod
+storage.states["A"] = "enable"
+storage.errors["A"] = []
+storage.load_order = ["A"]
+InitExecutor(core, log, emit_error, emit).run_on_init(storage)
+assert storage.states["A"] == "disable"
+assert storage.instances["A"] is None
+assert any(e[0] == "MOD_ERROR" for e in errors)
+assert "on_init failed" in storage.errors["A"]
+
+# 3. SKIP NONE INSTANCE
+
+storage = ModStorage()
+storage.instances["A"] = None
+storage.states["A"] = "enable"
+storage.errors["A"] = []
+storage.load_order = ["A"]
+InitExecutor(core, log, emit_error, emit).run_on_init(storage)
+# rien ne doit se passer
+assert True
+
+# 4. ENGINE_READY EVENT
+
+events.clear()
+ReadyExecutor.run_on_ready(emit)
+assert any(e[0] == "ENGINE_READY" for e in events)
+
+# 5. SHUTDOWN SUCCESS
+
+storage = ModStorage()
+mod = GoodMod()
+storage.instances["A"] = mod
+storage.states["A"] = "enable"
+storage.load_order = ["A"]
+ShutdownExecutor(core, log).run_on_shutdown(storage)
+assert mod.shutdown_called is True
+
+# 6. SHUTDOWN FAILURE (NO CRASH)
+
+logs.clear()
+storage = ModStorage()
+mod = CrashShutdownMod()
+storage.instances["A"] = mod
+storage.states["A"] = "enable"
+storage.load_order = ["A"]
+ShutdownExecutor(core, log).run_on_shutdown(storage)
+# ne doit pas planter
+assert True
+
+# 7. SHUTDOWN ORDER (REVERSED)
+
+order = []
+class TrackMod(GoodMod):
+    def __init__(self, name):
+        self.name = name
+
+    def on_shutdown(self, core):
+        order.append(self.name)
+
+storage = ModStorage()
+storage.instances["A"] = TrackMod("A")
+storage.instances["B"] = TrackMod("B")
+storage.states["A"] = "enable"
+storage.states["B"] = "enable"
+storage.load_order = ["A", "B"]
+ShutdownExecutor(core, log).run_on_shutdown(storage)
+assert order == ["B", "A"]
+
+# 8. DISABLED MOD SKIPPED
+
+order.clear()
+storage = ModStorage()
+storage.instances["A"] = TrackMod("A")
+storage.instances["B"] = TrackMod("B")
+storage.states["A"] = "disable"
+storage.states["B"] = "enable"
+storage.load_order = ["A", "B"]
+ShutdownExecutor(core, log).run_on_shutdown(storage)
+assert order == ["B"]
 
 print("ALL TESTS PASSED")
