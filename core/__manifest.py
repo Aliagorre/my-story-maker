@@ -159,7 +159,13 @@ class ManifestProcessor :
         parsed_version = Version.parse(manifest["version"])
         manifest["version"] = parsed_version
         for dep, constraint in manifest["requires"].items():
-            manifest["requires"][dep] = ConstraintParser.parse(constraint)
+            constraint = ConstraintParser.parse(constraint)
+            if constraint is None :
+                continue
+            manifest["requires"][dep] = constraint
         for dep, constraint in manifest["conflicts"].items():
-            manifest["conflicts"][dep] = ConstraintParser.parse(constraint)
+            constraint = ConstraintParser.parse(constraint)
+            if constraint is None :
+                continue
+            manifest["conflicts"][dep] = constraint
         mod_storage.manifests[mod_name] = deepcopy(manifest)

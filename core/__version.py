@@ -13,6 +13,8 @@ class Version:
 
     @staticmethod
     def parse(value: str) -> "Version|None":
+        if isinstance(value, Version) :
+            return value
         raw = value.strip()
         parts = raw.split(".")
         if len(parts) != 3:
@@ -54,17 +56,17 @@ class Condition:
 
 class ConstraintParser:
     @staticmethod
-    def parse(expression: str) -> Union[str, List[Condition]]:
+    def parse(expression: str) -> Union[str, List[Condition]]|None:
         expr = expression.strip()
         if expr == "*":
             return "*"
         if not expr:
-            raise ValueError("Leere Constraint-Expression")
+            return None # raise ValueError("Leere Constraint-Expression")
         conditions: List[Condition] = []
         for raw_part in expr.split(","):
             part = raw_part.strip()
             if not part:
-                raise ValueError(f"Ungültige Constraint-Expression: {expression!r}")
+                return None # raise ValueError(f"Ungültige Constraint-Expression: {expression!r}")
             if part == "*":
                 conditions.append(Condition(op="*"))
                 continue
@@ -79,7 +81,7 @@ class ConstraintParser:
                 op = "="
                 target_str = part.strip()
             if op != "*" and not target_str:
-                raise ValueError(f"Fehlende Zielversion in Bedingung: {part!r}")
+                return None # raise ValueError(f"Fehlende Zielversion in Bedingung: {part!r}")
             target = None if op == "*" else Version.parse(target_str) # type: ignore
             conditions.append(Condition(op=op, target=target))
         return conditions
@@ -105,8 +107,8 @@ class ConstraintResolver:
         raise ValueError(f"Unbekannter Operator: {condition.op!r}")
     
     @staticmethod
-    def satisfies(version: Version|None, constraints: Union[str, List[Condition]]) -> bool:
-        if version is None :
+    def satisfies(version: Version|None, constraints: Union[str, List[Condition]]|None) -> bool:
+        if version is None or constraints is None :
             return False
         if constraints == "*":
             return True

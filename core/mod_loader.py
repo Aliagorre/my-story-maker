@@ -31,7 +31,7 @@ class ModLoader:
         self.discovery = ModDiscovery(log, emit, emit_error)
         self.manifest_loader = ManifestLoader(log, emit_error)
         self.manifest_processor = ManifestProcessor
-        self.dependency_module = DependencyModule(emit_error, log)
+        self.dependency_module = DependencyModule(log, emit_error)
         self.dynamic_loader = DynamicLoader(core, log, emit_error, emit)
         self.init_executor = InitExecutor(core, log, emit_error, emit)
         self.ready_executor = ReadyExecutor

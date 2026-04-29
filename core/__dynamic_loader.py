@@ -79,7 +79,9 @@ class EntrypointLoader:
     @staticmethod
     def get_main_class(module):
         try:
-            cls = getattr(module, "Mod", None)
+            if not hasattr(module, "Mod"):
+                return None
+            cls = getattr(module, "Mod")
             if not isinstance(cls, type):
                 return None
             return cls
