@@ -9,10 +9,10 @@ from core.service_registry import ServiceRegistry
 from EVENTS import ENGINE_TICK, LOG_EVENT
 
 event_bus = EventBus(
-    log=lambda name, message: event_bus.emit({
+    log=lambda level, message: event_bus.emit({
         "name": LOG_EVENT,
         "source": "core",
-        "payload": {"type":name,"message":message},
+        "payload": {"level":level,"message":message, "source": "core"},
         "timestamp": int(time.time())
     }), 
     emit_error=lambda e, p: event_bus.emit({
@@ -23,10 +23,10 @@ event_bus = EventBus(
 }))
 
 service_registry = ServiceRegistry(
-    log=lambda name, message: event_bus.emit({
+    log=lambda level, message: event_bus.emit({
         "name": LOG_EVENT,
         "source": "core",
-        "payload": {"type":name,"message":message},
+        "payload": {"level":level,"message":message, "source": "core"},
         "timestamp": int(time.time())
     }), 
     emit_error=lambda e, p: event_bus.emit({
@@ -40,20 +40,20 @@ core = CoreAPI(
     event_bus=event_bus,
     service_registry=service_registry,
     mod_storage=None,  
-    log=lambda name, message: event_bus.emit({
+    log=lambda level, message: event_bus.emit({
         "name": LOG_EVENT,
         "source": "core",
-        "payload": {"type":name,"message":message},
+        "payload": {"level":level,"message":message, "source": "core"},
         "timestamp": int(time.time())
     })
 )
 
 mod_loader = ModLoader(
     core=core,
-    log=lambda name, message: event_bus.emit({
+    log=lambda level, message: event_bus.emit({
         "name": LOG_EVENT,
         "source": "core",
-        "payload": {"type":name,"message":message},
+        "payload": {"level":level,"message":message, "source": "core"},
         "timestamp": int(time.time())
     }),
     emit=lambda name, payload: event_bus.emit({
