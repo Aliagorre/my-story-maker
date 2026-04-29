@@ -33,7 +33,7 @@ Registers a service.
 Return True if service is registered
         """
         if  name in self.service_dict :
-            self.log(ERROR, f"Service '{name}' already exists") 
+            self.log(ERROR, f"service '{name}' already registered") 
             self.emit_error(MOD_ERROR, {"service_name": name, "reason": "duplicate", "expected": "unique"} )
             return False 
         
@@ -42,19 +42,20 @@ Return True if service is registered
             self.emit_error(MOD_ERROR, {"service_name": name, "reason": "name_convention", "expected": "snake_case"} )
             return False  
         elif instance is None:
-            self.log(ERROR, f"{name} are no valid instance")     
+            self.log(ERROR, f"invalid service instance for '{name}'")    
             self.emit_error(MOD_ERROR, {"service_name": name, "reason": "invalid_instance", "expected": "not_NoneType"} ) 
             return False 
         else  :
             self.service_dict[name] = instance
-            self.log(INFO, f"Service register : {name}") 
+            self.log(INFO, f"registered service '{name}'") 
             return True
 
     def unregister(self, name) -> bool :
         """
-Registers a service.
-Return True if service is unregistered
+Unregisters a service.
+Return True if service is removed.
         """
+
         if name not in self.service_dict :
             self.log(DEBUG, f"{name} : unknown service")
             return False

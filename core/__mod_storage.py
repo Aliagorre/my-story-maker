@@ -11,6 +11,6 @@ class ModStorage :
         self.instances : dict[str, Any]  = {} 
         self.paths     : dict[str, Path] = {}
         self.errors    : dict[str, list] = {}
-        self.dependencies  : dict[str, list]={}
-        self.conflicts : dict[str, list] = {}
-        self.load_order : list = []
+        self.dependencies  : dict[str, list[str]]={}
+        self.conflicts : dict[str, list[str]] = {}
+        self.load_order : list[str] = []

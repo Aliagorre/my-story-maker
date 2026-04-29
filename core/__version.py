@@ -12,11 +12,11 @@ class Version:
     patch: Segment
 
     @staticmethod
-    def parse(value: str) -> "Version":
+    def parse(value: str) -> "Version|None":
         raw = value.strip()
         parts = raw.split(".")
         if len(parts) != 3:
-            raise ValueError(f"Ungültige Version: {value!r}. Erwartet: MAJOR.MINOR.PATCH")
+            return None
         def parse_segment(s: str) -> Segment:
             s = s.strip()
             if s == "*":
@@ -31,7 +31,9 @@ class Version:
 
 class VersionComparator:
     @staticmethod
-    def compare(a: Version, b: Version) -> int:
+    def compare(a: Version|None, b: Version|None) -> int:
+        if a is None or b is None :
+            return 0
         for sa, sb in zip(a.as_tuple(), b.as_tuple()):
             if sa == "*" or sb == "*":
                 continue
@@ -103,7 +105,9 @@ class ConstraintResolver:
         raise ValueError(f"Unbekannter Operator: {condition.op!r}")
     
     @staticmethod
-    def satisfies(version: Version, constraints: Union[str, List[Condition]]) -> bool:
+    def satisfies(version: Version|None, constraints: Union[str, List[Condition]]) -> bool:
+        if version is None :
+            return False
         if constraints == "*":
             return True
         for condition in constraints:

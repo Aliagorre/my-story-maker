@@ -22,8 +22,8 @@ class InitExecutor :
             except Exception as e:
                 mod_storage.instances[mod] = None 
                 mod_storage.states[mod] = "disable"
-                mod_storage.errors[mod].append("on_init failed")
-                self.log(ERROR, f"[{mod}] on_init error: {e}")
+                mod_storage.errors.setdefault(mod, []).append("on_init failed")
+                self.log(ERROR, f"[{mod}] on_init failed: {e}")
                 self.emit_error(MOD_ERROR, {"mod" : mod})
                 continue
             self.emit(MOD_INITIALIZED, {"mod": mod})
@@ -37,6 +37,7 @@ class ShutdownExecutor :
     def __init__(self, core, log) -> None:
         self.core = core 
         self.log = log
+
     def run_on_shutdown(self, mod_storage : ModStorage) :
         for mod in reversed(mod_storage.load_order):
             if mod_storage.states[mod] == "disable" :
@@ -46,10 +47,7 @@ class ShutdownExecutor :
                 continue
             try:
                 instance.on_shutdown(self.core)
-            except Exception:
-                self.log(ERROR, f"[{mod}] on_shutdown error")
+            except Exception as e:
+                self.log(ERROR, f"[{mod}] on_shutdown error : {e}")
                 continue
-
-
-
 

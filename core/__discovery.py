@@ -1,4 +1,4 @@
-# core/__mod_discover.py
+# core/__discovery.py
 
 from pathlib import Path
 from typing import Callable
@@ -39,5 +39,7 @@ class ModDiscovery :
                 mod_storage.paths[mod_name] = mod_dir
                 mod_storage.states[mod_name] = "discovered"
                 mod_storage.errors[mod_name] = []
+                mod_storage.dependencies[mod_name] = []
+                mod_storage.conflicts[mod_name] = []
                 self.emit(MOD_DISCOVERED, {"mod": mod_name, "path": str(mod_dir)})
-                self.log(INFO, f"{mod_name} discover")
+                self.log(INFO, f"discovered mod {mod_name}")

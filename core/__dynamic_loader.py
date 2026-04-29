@@ -79,16 +79,8 @@ class EntrypointLoader:
     @staticmethod
     def get_main_class(module):
         try:
-            if not hasattr(module, "Mod"):
-                return None
-            cls = getattr(module, "Mod")
+            cls = getattr(module, "Mod", None)
             if not isinstance(cls, type):
-                return None
-            sig = inspect.signature(cls)
-            if any(
-                p.default is p.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
-                for p in sig.parameters.values()
-            ):
                 return None
             return cls
         except Exception:

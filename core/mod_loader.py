@@ -37,43 +37,24 @@ class ModLoader:
         self.ready_executor = ReadyExecutor
         self.shutdown_executor = ShutdownExecutor(core, log)
 
-    def load_all(self, search_paths: list[Path]):
-        """
-        Pipeline complet du Mod Loader :
-        1. Discovery
-        2. Manifest reading + validation
-        3. Dependency resolution
-        4. Dynamic loading (on_load)
-        5. Initialization (on_init)
-        6. ENGINE_READY (on_ready via events)
-        """
-
+    def load_all(self):
         self.emit(ENGINE_BOOT, {})
         self.log(INFO, "[ModLoader] ENGINE_BOOT")
-
-        for base_path in search_paths:
-            self.discovery.scan_folder(base_path, self.mod_storage)
-
-        for mod, path in self.mod_storage.paths.items():
-            manifest, errors = self.manifest_loader.load_manifest(path)
-            self.manifest_processor.store(
-                mod_name=mod,
-                manifest=manifest,
-                mod_storage=self.mod_storage,
-                errors=errors
-            )
+        # 1. Discovery sur les chemins canoniques (définis en dur dans ModDiscovery)
+        self.discovery.discover_mods(self.mod_storage)
+        # 2. Manifests : lecture + validation + stockage
+        self.manifest_loader.run_manifest_pipeline(self.mod_storage)
+        # 3. Résolution des dépendances
         self.dependency_module.run(self.mod_storage)
+        # 4. Chargement dynamique (on_load)
         self.dynamic_loader.run_dynamic_loading(self.mod_storage)
+        # 5. ENGINE_INIT + on_init
         self.emit(ENGINE_INIT, {})
         self.init_executor.run_on_init(self.mod_storage)
+        # 6. ENGINE_READY (on_ready via EventBus)
         self.ready_executor.run_on_ready(self.emit)
 
     def shutdown(self):
-        """
-        Appelé lors de l’arrêt du moteur :
-        - ENGINE_SHUTDOWN est émis ailleurs (EventBus / Core)
-        - on_shutdown est appelé en ordre inverse
-        """
         try:
             self.shutdown_executor.run_on_shutdown(self.mod_storage)
         except Exception as e:

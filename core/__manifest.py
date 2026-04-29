@@ -1,6 +1,7 @@
 # core/__manifest.py
 
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Callable
 
@@ -9,6 +10,12 @@ from core.__version import ConstraintParser, Version
 from EVENTS import MOD_MANIFEST_ERROR
 from LOG_LEVELS import DEBUG
 
+
+def is_snake_case(string:str) -> bool :
+    if not string :
+        return False
+    else :
+        return all("a" <= x <= "z" or "0" <= x <= "9" or x == "_"  for x in string)
 
 class ManifestLoader :
     def __init__(self, log : Callable, emit_error : Callable ) -> None:
@@ -23,10 +30,12 @@ class ManifestLoader :
                 if len(manifest_dict) == 0 :
                     mod_storage.states[mod] = "disable"
                     self.emit_error(MOD_MANIFEST_ERROR, {})
-                    self.log(DEBUG, "message to define")
+                    self.log(DEBUG, "incorrect manifest for {mod}")
                     continue
-            errors = ManifestValidator.validate(manifest_dict, mod_dir)
-            ManifestProcessor.store(mod, manifest_dict, mod_storage, errors)
+                errors = ManifestValidator.validate(manifest_dict, mod_dir)
+                for error in errors :
+                    self.log(DEBUG, error)
+                ManifestProcessor.store(mod, manifest_dict, mod_storage, errors)
 
 class ManifestReader :
     @staticmethod
@@ -38,7 +47,7 @@ class ManifestReader :
                 if not isinstance(manifest, dict) :
                     return {}
                 return manifest
-        except json.JSONDecodeError :
+        except (json.JSONDecodeError, FileNotFoundError) :
             return {}
 
 class ManifestValidator :
@@ -50,7 +59,9 @@ class ManifestValidator :
         if not isinstance(name, str) :
             return "name isn't str"
         if name[:4] != "mod_" :
-            return "name isn't mod's name"
+            return f"{name} isn't mod's name"
+        if not is_snake_case(name) :
+            return f"{name} isn't snake case"
         
     @staticmethod
     def rule_version_semver(manifest : dict) -> None|str:
@@ -59,6 +70,8 @@ class ManifestValidator :
         version = manifest["version"]
         if not isinstance(version, str) :
             return "version isn't str"
+        if Version.parse(version) is None :
+            return "version isn't semVer"
     
     @staticmethod
     def rule_entrypoint_exists(manifest : dict, mod_dir : Path) -> None|str:
@@ -106,7 +119,7 @@ class ManifestValidator :
     @staticmethod
     def rule_permissions_list(manifest : dict)  -> None|str:
         if "permissions" not in manifest :
-            return "miss permissions"
+            return None
         permissions = manifest["permissions"]
         if not isinstance(permissions , list) :
             return "permissions isn't list"
@@ -130,7 +143,9 @@ class ManifestProcessor :
     def store(mod_name : str, manifest : dict, mod_storage : ModStorage, errors : list) -> None :
         if errors :
             mod_storage.states[mod_name] = "disable"
-        elif "active" in manifest :
+            mod_storage.errors[mod_name] = errors
+            return
+        if "active" in manifest :
             if isinstance(manifest["active"], bool) :
                 mod_storage.states[mod_name] = "enable" if manifest["active"] else "disable"
             elif isinstance(manifest["active"], str) :
@@ -147,4 +162,4 @@ class ManifestProcessor :
             manifest["requires"][dep] = ConstraintParser.parse(constraint)
         for dep, constraint in manifest["conflicts"].items():
             manifest["conflicts"][dep] = ConstraintParser.parse(constraint)
-        mod_storage.manifests[mod_name] = manifest
+        mod_storage.manifests[mod_name] = deepcopy(manifest)

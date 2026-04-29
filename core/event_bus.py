@@ -35,22 +35,28 @@ external mods.
 
     def emit(self, event: dict) -> bool:
         """
-The EventBus validates the event structure.
+    The EventBus validates the event structure.
 
-All subscribed handlers are called.
+    All subscribed handlers are called.
 
-Errors in a handler:
- - are caught,
- - are logged,
- - do not stop propagation.
+    Errors in a handler:
+    - are caught,
+    - are logged,
+    - do not stop propagation.
         """
+        # Validation unique
+        if not is_event_structure(event):
+            self.log(DEBUG, "event does not follow structure")
+            return False
+        if event["name"] not in self._events:
+            self.log(INFO, f"{event['name']} : unknown event")
+            return False
         try:
             asyncio.get_running_loop()
             asyncio.create_task(self._emit_async(event))
+            return True
         except RuntimeError:
             return self._emit_sync(event)
-
-        return True
 
     def subscribe(self, event_name: str, callback: Callable) -> bool:
         """
@@ -69,27 +75,20 @@ Return True in subscribe success
         return True
 
     def unsubscribe(self, event_name: str, callback: Callable) -> bool:
-        """
-Unsubscribes a handler from an event.
-Return True in unsubscribe success
-        """
-        if event_name not in self._events :
+        if event_name not in self._events:
             self.log(DEBUG, f"{event_name} : unknown event")
             return False
-        elif not callable(callback) : 
+        if not callable(callback):
             self.log(DEBUG, "callback must be callable")
             return False
-        elif callback not in self._events[event_name] :
+        if callback not in self._events[event_name]:
             self.log(DEBUG, f"no {callback.__name__} in {event_name}")
             return False
-        else :
-            self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
-            try :
-                self._events[event_name].remove(callback)
-                return True
-            except Exception as e :
-                self.emit_error(MOD_ERROR, {"event_name" : event_name, "exception" : str(e)} )
-                return False
+
+        self._events[event_name].remove(callback)
+        self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
+        return True
+
 
     def register(self, event_name: str) -> bool:
         """
@@ -97,7 +96,7 @@ Register new custom event
 Return True in register success
         """
         if not is_upper_case(event_name):
-            self.log(DEBUG, "event name must be UPPER_CASE")
+            self.log(DEBUG, f"{event_name} must be UPPER_CASE")
             return False
         if event_name in self._events:
             return True
@@ -116,58 +115,34 @@ Return True in UNregister success
         return True
 
     def _emit_sync(self, event: dict) -> bool:
-        if not is_event_structure(event):
-            self.log(DEBUG, "event does not follow structure")
-            return False
-
-        if event["name"] not in self._events:
-            self.log(INFO, f"{event['name']} : unknown event")
-            return False
-
         for handler in self._events[event["name"]]:
             try:
                 if inspect.iscoroutinefunction(handler):
-                    # Async handler in sync mode → schedule it
                     asyncio.run(handler(event))
                 else:
                     handler(event)
             except Exception as e:
                 self._handler_error(event, handler, e)
-
         return True
 
     async def _emit_async(self, event: dict) -> bool:
-        if not is_event_structure(event):
-            self.log(DEBUG, "event does not follow structure")
-            return False
-
-        if event["name"] not in self._events:
-            self.log(INFO, f"{event['name']} : unknown event")
-            return False
-
         sync_handlers = []
         async_handlers = []
-
         for h in self._events[event["name"]]:
             if inspect.iscoroutinefunction(h):
                 async_handlers.append(h)
             else:
                 sync_handlers.append(h)
-
-        # 1. Run sync handlers
         for h in sync_handlers:
             try:
                 h(event)
             except Exception as e:
                 self._handler_error(event, h, e)
-
-        # 2. Run async handlers
         for h in async_handlers:
             try:
                 await h(event)
             except Exception as e:
                 self._handler_error(event, h, e)
-
         return True
 
     def _handler_error(self, event, handler, exception):

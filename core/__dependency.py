@@ -1,9 +1,13 @@
 # core/__dependency.py
 
+import heapq
 from collections import defaultdict, deque
+from heapq import heappop, heappush
 
 from core.__mod_storage import ModStorage
 from core.__version import ConstraintResolver
+from EVENTS import MOD_CONFLICT, MOD_DEPENDENCY_ERROR
+from LOG_LEVELS import DEBUG
 
 
 class DependencyGraphBuilder:
@@ -26,22 +30,32 @@ class DependencyChecker:
             for dep, constraints in requires.items():
                 if dep not in mod_storage.manifests:
                     mod_storage.states[mod] = "disable"
-                    emit_error("MOD_DEPENDENCY_ERROR", {
+                    emit_error(MOD_DEPENDENCY_ERROR, {
                         "mod": mod,
                         "missing": dep
                     })
                     continue
                 if mod_storage.states.get(dep) == "disable":
                     mod_storage.states[mod] = "disable"
-                    emit_error("MOD_DEPENDENCY_ERROR", {
+                    emit_error(MOD_DEPENDENCY_ERROR, {
                         "mod": mod,
                         "disabled_dep": dep
+                    })
+                    continue
+                if constraints == "*":
+                    continue
+                if not isinstance(constraints, list):
+                    mod_storage.states[mod] = "disable"
+                    emit_error(MOD_DEPENDENCY_ERROR, {
+                        "mod": mod,
+                        "dep": dep,
+                        "invalid_constraint_format": constraints
                     })
                     continue
                 dep_version = mod_storage.manifests[dep]["version"]
                 if not ConstraintResolver.satisfies(dep_version, constraints):
                     mod_storage.states[mod] = "disable"
-                    emit_error("MOD_DEPENDENCY_ERROR", {
+                    emit_error(MOD_DEPENDENCY_ERROR, {
                         "mod": mod,
                         "dep": dep,
                         "constraint": constraints,
@@ -58,10 +72,12 @@ class ConflictChecker:
             for target, constraints in conflicts.items():
                 if target not in mod_storage.manifests:
                     continue
+                if mod_storage.states.get(target) == "disable":
+                    continue
                 target_version = mod_storage.manifests[target]["version"]
                 if ConstraintResolver.satisfies(target_version, constraints):
                     mod_storage.states[mod] = "disable"
-                    emit_error("MOD_CONFLICT", {
+                    emit_error(MOD_CONFLICT, {
                         "mod": mod,
                         "conflict_with": target,
                         "constraint": constraints
@@ -74,7 +90,9 @@ class CycleDetector:
         cycles = set()
         def dfs(node, stack):
             if state.get(node) == "visiting":
-                cycles.update(stack)
+                if node in stack:
+                    idx = stack.index(node)
+                    cycles.update(stack[idx:])
                 return
             if state.get(node) == "visited":
                 return
@@ -87,35 +105,34 @@ class CycleDetector:
                 dfs(node, [node])
         return cycles
 
-class TopologicalSorter:
+class PriorityTopoSorter:
     @staticmethod
-    def sort(graph, active_mods):
-        indegree = defaultdict(int)
-        for mod in graph:
-            for dep in graph[mod]:
-                indegree[dep] += 1
-        queue = deque([m for m in active_mods if indegree[m] == 0])
+    def sort(graph, mod_storage, active_mods):
+        # dep -> [mods qui en dépendent]
+        adj = defaultdict(list)
+        indegree = {m: 0 for m in active_mods}
+        # Construction correcte
+        for mod in active_mods:
+            for dep in graph.get(mod, []):
+                if dep in indegree:
+                    adj[dep].append(mod)   # dep → mod
+                    indegree[mod] += 1
+        # heap = ( -priority, name )
+        heap = []
+        for mod in active_mods:
+            if indegree[mod] == 0:
+                prio = mod_storage.manifests[mod].get("priority", 0)
+                heappush(heap, (-prio, mod))
         order = []
-        while queue:
-            node = queue.popleft()
-            order.append(node)
-
-            for dep in graph.get(node, []):
-                indegree[dep] -= 1
-                if indegree[dep] == 0:
-                    queue.append(dep)
+        while heap:
+            _, mod = heappop(heap)
+            order.append(mod)
+            for dependent in adj[mod]:
+                indegree[dependent] -= 1
+                if indegree[dependent] == 0:
+                    prio = mod_storage.manifests[dependent].get("priority", 0)
+                    heappush(heap, (-prio, dependent))
         return order
-
-class PrioritySorter:
-    @staticmethod
-    def sort(order, mod_storage):
-        return sorted(
-            order,
-            key=lambda m: (
-                -mod_storage.manifests[m].get("priority", 0),
-                m
-            )
-        )
 
 class DependencyModule:
     def __init__(self, log, emit_error):
@@ -129,12 +146,11 @@ class DependencyModule:
         cycles = CycleDetector.detect(graph)
         for mod in cycles:
             mod_storage.states[mod] = "disable"
-            self.emit_error("MOD_DEPENDENCY_ERROR", {"cycle": mod})
+            self.log(DEBUG, f"cycle dependencies from {mod}")
+            self.emit_error(MOD_DEPENDENCY_ERROR, {"cycle": mod})
         active_mods = [
             m for m in mod_storage.manifests
             if mod_storage.states.get(m) != "disable"
         ]
-        topo_order = TopologicalSorter.sort(graph, active_mods)
-        final_order = PrioritySorter.sort(topo_order, mod_storage)
-        mod_storage.load_order = final_order
+        final_order = PriorityTopoSorter.sort(graph, mod_storage, active_mods)
         mod_storage.load_order = final_order
