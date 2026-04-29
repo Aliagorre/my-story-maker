@@ -92,7 +92,8 @@ class ConstraintResolver:
         if condition.op == "*":
             return True
         if condition.target is None:
-            raise ValueError("Condition ohne Zielversion")
+            print("correct me in __version.py")
+            return False
         cmp = VersionComparator.compare(version, condition.target)
         if condition.op == "=":
             return cmp == 0
@@ -104,7 +105,8 @@ class ConstraintResolver:
             return cmp in (0, 1)
         if condition.op == "<=":
             return cmp in (0, -1)
-        raise ValueError(f"Unbekannter Operator: {condition.op!r}")
+        print("correct me in __version.py")
+        return False
     
     @staticmethod
     def satisfies(version: Version|None, constraints: Union[str, List[Condition]]|None) -> bool:

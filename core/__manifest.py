@@ -100,7 +100,7 @@ class ManifestValidator :
     @staticmethod
     def rule_requires_dict(manifest : dict) -> None|str:
         if "requires" not in manifest :
-            return "miss requires "
+            return "miss requires"
         requires = manifest["requires"]
         if not isinstance(requires, dict) :
             return "requires isn't dict"

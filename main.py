@@ -38,7 +38,12 @@ core = CoreAPI(
 mod_loader = ModLoader(
     core=core,
     log=logger,
-    emit=event_bus.emit,
+    emit=lambda name, payload: event_bus.emit({
+        "name": name,
+        "source": "core",
+        "payload": payload,
+        "timestamp": int(time.time())
+    }),
     emit_error=lambda e, p: event_bus.emit({
         "name": e,
         "source": "core",
@@ -49,7 +54,6 @@ mod_loader = ModLoader(
 
 # Injection du mod_storage dans CoreAPI
 core._mod_storage = mod_loader.mod_storage
-mod_loader.mod_storage.manifests["core_engine"] = {"version": "7.0.0"}
 
 mod_loader.load_all()
 
