@@ -1,0 +1,10 @@
+{
+    "name": "mod_styled_error_and_log",
+    "version": "1.0.2",
+    "entrypoint": "main.py",
+    "type": "extension",
+    "priority": 110,
+    "requires": {},
+    "conflicts": {},
+    "permissions": []
+}
