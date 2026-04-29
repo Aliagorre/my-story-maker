@@ -1,4 +1,4 @@
-# main.py — Point d’entrée StoryMaker V7
+# main.py 
 
 import time
 
@@ -6,22 +6,30 @@ from core.core_api import CoreAPI
 from core.event_bus import EventBus
 from core.mod_loader import ModLoader
 from core.service_registry import ServiceRegistry
-from EVENTS import ENGINE_TICK
-from LOG_LEVELS import INFO
+from EVENTS import ENGINE_TICK, LOG_EVENT
 
-
-def logger(level, message):
-    now = time.strftime("%H:%M:%S")
-    print(f"[{level}] [{now}] [core] {message}")
-
-event_bus = EventBus(log=logger, emit_error=lambda e, p: event_bus.emit({
+event_bus = EventBus(
+    log=lambda name, message: event_bus.emit({
+        "name": LOG_EVENT,
+        "source": "core",
+        "payload": {"type":name,"message":message},
+        "timestamp": int(time.time())
+    }), 
+    emit_error=lambda e, p: event_bus.emit({
     "name": e,
     "source": "core",
     "payload": p,
     "timestamp": int(time.time())
 }))
 
-service_registry = ServiceRegistry(log=logger, emit_error=lambda e, p: event_bus.emit({
+service_registry = ServiceRegistry(
+    log=lambda name, message: event_bus.emit({
+        "name": LOG_EVENT,
+        "source": "core",
+        "payload": {"type":name,"message":message},
+        "timestamp": int(time.time())
+    }), 
+    emit_error=lambda e, p: event_bus.emit({
     "name": e,
     "source": "core",
     "payload": p,
@@ -31,13 +39,23 @@ service_registry = ServiceRegistry(log=logger, emit_error=lambda e, p: event_bus
 core = CoreAPI(
     event_bus=event_bus,
     service_registry=service_registry,
-    mod_storage=None,  # sera injecté par ModLoader
-    log=logger
+    mod_storage=None,  
+    log=lambda name, message: event_bus.emit({
+        "name": LOG_EVENT,
+        "source": "core",
+        "payload": {"type":name,"message":message},
+        "timestamp": int(time.time())
+    })
 )
 
 mod_loader = ModLoader(
     core=core,
-    log=logger,
+    log=lambda name, message: event_bus.emit({
+        "name": LOG_EVENT,
+        "source": "core",
+        "payload": {"type":name,"message":message},
+        "timestamp": int(time.time())
+    }),
     emit=lambda name, payload: event_bus.emit({
         "name": name,
         "source": "core",
@@ -52,11 +70,9 @@ mod_loader = ModLoader(
     })
 )
 
-# Injection du mod_storage dans CoreAPI
 core._mod_storage = mod_loader.mod_storage
 
 mod_loader.load_all()
-
 
 while True:
     event_bus.emit({

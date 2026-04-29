@@ -1,6 +1,6 @@
 {
     "name": "core_engine",
-    "version": "7.0.1",
+    "version": "7.0.2",
     "entrypoint": "core_engine.py",
     "type": "core",
     "priority": 0,
