@@ -49,6 +49,7 @@ mod_loader = ModLoader(
 
 # Injection du mod_storage dans CoreAPI
 core._mod_storage = mod_loader.mod_storage
+mod_loader.mod_storage.manifests["core_engine"] = {"version": "7.0.0"}
 
 mod_loader.load_all()
 
