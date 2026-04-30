@@ -17,7 +17,12 @@ class DynamicLoader:
         self.core = core
 
     def run_dynamic_loading(self, mod_storage: ModStorage):
-        def disable_mod(mod, error_msg, payload):
+        """
+Import mod
+Instance main class' mod 
+Call on_load
+        """
+        def disable_mod(mod, error_msg, payload) -> None:
             mod_storage.states[mod] = "disable"
             mod_storage.instances[mod] = None
             if mod not in mod_storage.errors:
@@ -59,7 +64,10 @@ class DynamicLoader:
 
 class EntrypointLoader:
     @staticmethod
-    def import_from_path(path):
+    def import_from_path(path) :
+        """
+Charge mod module in environnement and return it.
+        """
         try:
             if not path.exists() or not path.is_file():
                 return None
@@ -78,6 +86,9 @@ class EntrypointLoader:
 
     @staticmethod
     def get_main_class(module):
+        """
+Return main class from a module
+        """
         try:
             if not hasattr(module, "Mod"):
                 return None
@@ -109,7 +120,11 @@ class ModInstantiator:
 
 class LoadExecutor:
     @staticmethod
-    def run_on_load(instance, core, log):
+    def run_on_load(instance, core, log) -> bool:
+        """
+call on_load method from mod instance
+Return True in success
+        """
         try:
             instance.on_load(core)
             return True

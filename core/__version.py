@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-Segment = Union[int, str]  # int oder "*"
+Segment = Union[int, str]  # int or "*"
 
 @dataclass(frozen=True)
 class Version:
@@ -13,27 +13,40 @@ class Version:
 
     @staticmethod
     def parse(value: str) -> "Version|None":
+        """
+return version object from value
+return None in error
+        """
         if isinstance(value, Version) :
             return value
         raw = value.strip()
         parts = raw.split(".")
         if len(parts) != 3:
             return None
-        def parse_segment(s: str) -> Segment:
-            s = s.strip()
-            if s == "*":
-                return "*"
-            if not s.isdigit():
-                raise ValueError(f"Ungültiger Segmentwert: {s!r}")
-            return int(s)
-        return Version(*(parse_segment(p) for p in parts))
+        for part in parts :
+            part = part.strip()
+            if part != "*" :
+                if part.isdigit() :
+                    part = int(part)
+                else :
+                    return None
+        return Version(*parts)
 
     def as_tuple(self) -> Tuple[Segment, Segment, Segment]:
+        """
+return segment of version
+        """
         return (self.major, self.minor, self.patch)
+    
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
 
 class VersionComparator:
     @staticmethod
     def compare(a: Version|None, b: Version|None) -> int:
+        """
+return diff between version
+        """
         if a is None or b is None :
             return 0
         for sa, sb in zip(a.as_tuple(), b.as_tuple()):
@@ -57,6 +70,9 @@ class Condition:
 class ConstraintParser:
     @staticmethod
     def parse(expression: str) -> Union[str, List[Condition]]|None:
+        """
+parse expression to condition
+        """
         expr = expression.strip()
         if expr == "*":
             return "*"
@@ -89,6 +105,9 @@ class ConstraintParser:
 class ConstraintResolver:
     @staticmethod
     def check_condition(version: Version, condition: Condition) -> bool:
+        """
+return True if version match the condition
+        """
         if condition.op == "*":
             return True
         if condition.target is None:

@@ -5,13 +5,10 @@
 import time
 from typing import Any
 
-from LOG_LEVELS import CRITICAL, DEBUG, ERROR, INFO, WARNING
-
 
 class CoreAPI:
     """
-    API publique exposée aux mods.
-    Ne doit jamais exposer les internals du core.
+    public API for mods
     """
 
     def __init__(self, event_bus, service_registry, mod_storage, log):
@@ -20,19 +17,16 @@ class CoreAPI:
         self._mod_storage = mod_storage
         self._log = log
 
-    def emit(self, event_name: str, payload: dict = {}) -> bool:
+    def emit(self, event_name: str, payload: dict = {}, source= "core") -> bool:
         """
-        Émet un événement structuré.
-        Injecte automatiquement :
-        - source = "core"
-        - timestamp = UNIX
+emit the event
         """
         if payload is None:
             payload = {}
 
         event = {
             "name": event_name,
-            "source": "core",
+            "source": source,
             "payload": payload,
             "timestamp": int(time.time()),
         }
@@ -50,34 +44,31 @@ class CoreAPI:
 
     def get_mod(self, name: str):
         """
-        Retourne l’instance du mod, ou None.
+return mod instance. None if don't exist
         """
         return self._mod_storage.instances.get(name)
 
     def get_manifest(self, name: str):
         """
-        Retourne le manifest parsé, ou None.
+return mod manifest
         """
         return self._mod_storage.manifests.get(name)
 
     def get_all_mods(self):
         """
-        Retourne la liste des mods chargés (activés).
+return enable mods
         """
         return [
             m for m, state in self._mod_storage.states.items()
-            if state != "disable"
+            if state == "enable"
         ]
 
     def log(self, level: str, message: str):
-        """
-        Logue via le logger interne.
-        """
         self._log(level, message)
 
     def get_core_version(self) -> str:
         """
-        Retourne la version SemVer du core.
+return core version
         """
         manifest = self._mod_storage.manifests.get("core_engine")
         if manifest:

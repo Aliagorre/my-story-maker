@@ -9,6 +9,7 @@ from core.__mod_storage import ModStorage
 from core.__version import ConstraintParser, Version
 from EVENTS import MOD_MANIFEST_ERROR
 from LOG_LEVELS import DEBUG
+from MOD_TYPE import MOD_TYPES
 
 
 def is_snake_case(string:str) -> bool :
@@ -23,6 +24,10 @@ class ManifestLoader :
         self.emit_error = emit_error
 
     def run_manifest_pipeline(self, mod_storage : ModStorage) -> None :
+        """
+read manifest and store it.
+parse version to version object
+        """
         for mod in mod_storage.states :
             if mod_storage.states[mod] == "discovered" :
                 mod_dir = mod_storage.paths[mod]
@@ -40,6 +45,9 @@ class ManifestLoader :
 class ManifestReader :
     @staticmethod
     def read(mod_path : Path) -> dict :
+        """
+return dict from manifest.json
+        """
         manifest_path = mod_path / "manifest.json" # It is a file, not a directory, no ?
         try:
             with manifest_path.open("r", encoding="utf-8") as f:
@@ -53,6 +61,9 @@ class ManifestReader :
 class ManifestValidator :
     @staticmethod
     def rule_name_format(manifest : dict) -> None|str:
+        """
+return name errors
+        """
         if "name" not in manifest :
             return "miss name"
         name = manifest["name"]
@@ -65,6 +76,9 @@ class ManifestValidator :
         
     @staticmethod
     def rule_version_semver(manifest : dict) -> None|str:
+        """
+return semVer errors
+        """
         if "version" not in manifest :
             return "miss version"
         version = manifest["version"]
@@ -75,6 +89,9 @@ class ManifestValidator :
     
     @staticmethod
     def rule_entrypoint_exists(manifest : dict, mod_dir : Path) -> None|str:
+        """
+return entrypoint errors
+        """
         if "entrypoint" not in manifest :
             return "miss entrypoint"
         entrypoint = mod_dir / Path(manifest["entrypoint"])
@@ -83,14 +100,20 @@ class ManifestValidator :
     
     @staticmethod
     def rule_type_valid(manifest : dict) -> None|str:
+        """
+return type errors
+        """
         if "type" not in manifest :
             return "miss type"
         type = manifest["type"]
-        if type not in {"core_engine", "core_default", "default", "extension", "experimental"} :
+        if type not in MOD_TYPES :
             return f"{type} type don't exist"
     
     @staticmethod
     def rule_priority_int(manifest : dict) -> None|str:
+        """
+return priority errors
+        """
         if "priority" not in manifest :
             return "miss priority"
         priority = manifest["priority"]
@@ -99,6 +122,9 @@ class ManifestValidator :
         
     @staticmethod
     def rule_requires_dict(manifest : dict) -> None|str:
+        """
+return dependencies errors
+        """
         if "requires" not in manifest :
             return "miss requires"
         requires = manifest["requires"]
@@ -110,6 +136,9 @@ class ManifestValidator :
         
     @staticmethod
     def rule_conflicts_dict(manifest : dict) -> None|str:
+        """
+return conflict errors 
+        """
         if "conflicts" not in manifest :
             return "miss conflicts"
         conflicts = manifest["conflicts"]
@@ -118,6 +147,9 @@ class ManifestValidator :
         
     @staticmethod
     def rule_permissions_list(manifest : dict)  -> None|str:
+        """
+return permissions errors
+        """
         if "permissions" not in manifest :
             return None
         permissions = manifest["permissions"]
@@ -126,6 +158,9 @@ class ManifestValidator :
 
     @staticmethod
     def validate(manifest : dict, mod_dir : Path) -> list :
+        """
+return errors list from manifest
+        """
         errors = [
         ManifestValidator.rule_name_format(manifest),
         ManifestValidator.rule_version_semver(manifest),
@@ -141,6 +176,10 @@ class ManifestValidator :
 class ManifestProcessor :
     @staticmethod
     def store(mod_name : str, manifest : dict, mod_storage : ModStorage, errors : list) -> None :
+        """
+store manifest in mod_storage
+parse version in Version object
+        """
         if errors :
             mod_storage.states[mod_name] = "disable"
             mod_storage.errors[mod_name] = errors

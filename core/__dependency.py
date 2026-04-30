@@ -1,7 +1,6 @@
 # core/__dependency.py
 
-import heapq
-from collections import defaultdict, deque
+from collections import defaultdict
 from heapq import heappop, heappush
 
 from core.__mod_storage import ModStorage
@@ -12,7 +11,10 @@ from LOG_LEVELS import DEBUG
 
 class DependencyGraphBuilder:
     @staticmethod
-    def build(mod_storage: ModStorage):
+    def build(mod_storage: ModStorage) -> dict:
+        """
+Return dependencies graph
+        """
         graph = {}
         for mod, manifest in mod_storage.manifests.items():
             requires = manifest.get("requires", {})
@@ -22,7 +24,10 @@ class DependencyGraphBuilder:
 
 class DependencyChecker:
     @staticmethod
-    def check(mod_storage: ModStorage, emit_error):
+    def check(mod_storage: ModStorage, emit_error) -> None:
+        """
+Disable mods if miss dependencies
+        """
         for mod in mod_storage.dependencies:
             if mod_storage.states.get(mod) == "disable":
                 continue
@@ -64,7 +69,10 @@ class DependencyChecker:
 
 class ConflictChecker:
     @staticmethod
-    def check(mod_storage: ModStorage, emit_error):
+    def check(mod_storage: ModStorage, emit_error) -> None:
+        """
+Disable mods if in conflict with other
+        """
         for mod in mod_storage.manifests:
             if mod_storage.states.get(mod) == "disable":
                 continue
@@ -86,7 +94,10 @@ class ConflictChecker:
 class CycleDetector:
     @staticmethod
     def detect(graph):
-        state = {}  # None / visiting / visited
+        """
+Return cycle dependencies
+        """
+        state = {}  
         cycles = set()
         def dfs(node, stack):
             if state.get(node) == "visiting":
@@ -107,7 +118,10 @@ class CycleDetector:
 
 class PriorityTopoSorter:
     @staticmethod
-    def sort(graph, mod_storage, active_mods):
+    def sort(graph, mod_storage, active_mods) -> list:
+        """
+Return list of mod ordered for loading.
+        """
         # dep -> [mods qui en dépendent]
         adj = defaultdict(list)
         indegree = {m: 0 for m in active_mods}
@@ -139,7 +153,11 @@ class DependencyModule:
         self.emit_error = emit_error
         self.log = log
 
-    def run(self, mod_storage: ModStorage):
+    def run(self, mod_storage: ModStorage) -> None:
+        """
+complete mod_storage.load_order 
+disable conflict mod and circular dependencies
+        """
         graph = DependencyGraphBuilder.build(mod_storage)
         DependencyChecker.check(mod_storage, self.emit_error)
         ConflictChecker.check(mod_storage, self.emit_error)

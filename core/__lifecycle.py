@@ -13,6 +13,9 @@ class InitExecutor :
         self.core = core
 
     def run_on_init(self, mod_storage : ModStorage) :
+        """
+call on_init method from mod instance
+        """
         for mod in mod_storage.load_order :
             instance = mod_storage.instances.get(mod)
             if instance is None :
@@ -31,6 +34,9 @@ class InitExecutor :
 class ReadyExecutor :
     @staticmethod
     def run_on_ready(emit) :
+        """
+emit ENGINE_READY event
+        """
         emit(ENGINE_READY, {})
 
 class ShutdownExecutor :
@@ -38,7 +44,10 @@ class ShutdownExecutor :
         self.core = core 
         self.log = log
 
-    def run_on_shutdown(self, mod_storage : ModStorage) :
+    def run_on_shutdown(self, mod_storage : ModStorage) -> None:
+        """
+call on_shutdown method from mod instance
+        """
         for mod in reversed(mod_storage.load_order):
             if mod_storage.states[mod] == "disable" :
                 continue

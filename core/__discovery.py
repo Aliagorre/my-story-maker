@@ -5,7 +5,7 @@ from typing import Callable
 
 from core.__mod_storage import ModStorage
 from EVENTS import MOD_DISCOVERED
-from LOG_LEVELS import INFO
+from LOG_LEVELS import DEBUG, ERROR, INFO
 
 
 class ModDiscovery :
@@ -15,15 +15,21 @@ class ModDiscovery :
         self.emit_error = emit_error
 
     def discover_mods(self, mod_storage : ModStorage) -> None :
+        """
+Store mods from canonic folder in mod_storage
+Don't store manifest
+        """
         paths = (
             Path("core/default_mods"), 
             Path("mods/default"), 
             Path("mods")
             )
         for path in paths :
-            if not path.exists(): 
+            if not path.exists():
+                self.log(ERROR, f"miss canonic folder : {path}") 
                 continue
             if not path.is_dir(): 
+                self.log(ERROR, f"canonic {path} isn't folder") 
                 continue
             for mod_dir in path.iterdir():
                 if not mod_dir.exists() :
@@ -35,6 +41,7 @@ class ModDiscovery :
                     continue
                 mod_manifest = mod_dir / "manifest.json"
                 if not mod_manifest.exists() :
+                    self.log(DEBUG, f"{mod_name} has no manifest.json")
                     continue
                 mod_storage.paths[mod_name] = mod_dir
                 mod_storage.states[mod_name] = "discovered"

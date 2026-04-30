@@ -29,22 +29,11 @@ default mods,
 external mods.
     """
     def __init__(self, log: Callable, emit_error: Callable):
-        self._events: dict[str, list[Callable]] = {e: [] for e in EVENTS}
+        self._events: dict[str, dict[str, list[Callable]]] = {e: {} for e in EVENTS}
         self.log = log
         self.emit_error = emit_error
 
     def emit(self, event: dict) -> bool:
-        """
-    The EventBus validates the event structure.
-
-    All subscribed handlers are called.
-
-    Errors in a handler:
-    - are caught,
-    - are logged,
-    - do not stop propagation.
-        """
-        # Validation unique
         if not is_event_structure(event):
             self.log(DEBUG, "event does not follow structure")
             return False
@@ -66,27 +55,37 @@ Return True in subscribe success
         if event_name not in self._events:
             self.log(DEBUG, f"{event_name} : unknown event")
             return False
+        name = callback.__name__
         if not callable(callback):
-            self.log(DEBUG, "callback must be callable")
+            self.log(DEBUG, f"callback {name} must be callable")
             return False
 
-        self._events[event_name].append(callback)
-        self.log(INFO, f"{event_name} : new callback : {callback.__name__}")
+        if name not in self._events[event_name]:
+            self._events[event_name][name] = []
+
+        # Le plus récent en premier
+        self._events[event_name][name].insert(0, callback)
+
+        self.log(INFO, f"{event_name} : new callback : {name}")
         return True
 
     def unsubscribe(self, event_name: str, callback: Callable) -> bool:
         if event_name not in self._events:
             self.log(DEBUG, f"{event_name} : unknown event")
             return False
+        name = callback.__name__
         if not callable(callback):
-            self.log(DEBUG, "callback must be callable")
+            self.log(DEBUG, f"callback '{name}' must be callable")
             return False
-        if callback not in self._events[event_name]:
-            self.log(DEBUG, f"no {callback.__name__} in {event_name}")
+        if name not in self._events[event_name] :
+            self.log(DEBUG, f"{name} not in {event_name}")
+            return False
+        if callback not in self._events[event_name][name]:
+            self.log(DEBUG, f"callback not in '{name}'")
             return False
 
-        self._events[event_name].remove(callback)
-        self.log(INFO, f"{event_name} : remove callback : {callback.__name__}")
+        self._events[event_name][name].remove(callback)
+        self.log(INFO, f"{event_name} : remove callback : {name}")
         return True
 
 
@@ -100,7 +99,7 @@ Return True in register success
             return False
         if event_name in self._events:
             return True
-        self._events[event_name] = []
+        self._events[event_name] = {}
         return True
 
     def unregister(self, event_name) -> bool :

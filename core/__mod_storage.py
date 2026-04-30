@@ -5,6 +5,9 @@ from typing import Any
 
 
 class ModStorage :
+    """
+store all to know from mods and load_order
+    """
     def __init__(self) -> None:
         self.manifests : dict[str, dict] = {}
         self.states    : dict[str, str ] = {} # "enable" "disable" "discovered"
