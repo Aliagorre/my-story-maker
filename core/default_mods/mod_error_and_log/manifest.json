@@ -4,6 +4,7 @@
     "entrypoint": "main.py",
     "type": "core_default",
     "priority": 900,
+    "active": true,
     "requires": {},
     "conflicts": {},
     "permissions": []

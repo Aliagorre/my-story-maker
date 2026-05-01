@@ -70,11 +70,12 @@ class EventBus:
 
         return True
 
-    # ------------------------------------------------------------ subscribe
-
     def subscribe(self, event_name: str, callback) -> bool:
+        """
+        callback will be call on event
+        """
         if event_name not in self._events:
-            self.log(DEBUG, f"{event_name} : événement inconnu")
+            self.log(DEBUG, f"[SUBSCRIBE] {event_name} : unknown event")
             return False
         try:
             handler = _wrap(callback)
@@ -88,15 +89,13 @@ class EventBus:
 
         self.log(
             INFO,
-            f"{event_name} : +{handler.name} [mode={handler.mode}, prio={handler.priority}]",
+            f"[SUBSCRIBE] {event_name} : +{handler.name} [mode={handler.mode}, prio={handler.priority}]",
         )
         return True
 
-    # ---------------------------------------------------------- unsubscribe
-
     def unsubscribe(self, event_name: str, callback) -> bool:
         if event_name not in self._events:
-            self.log(DEBUG, f"{event_name} : événement inconnu")
+            self.log(DEBUG, f"[SUBSCRIBE] {event_name} : unknown event")
             return False
         try:
             handler = _wrap(callback)

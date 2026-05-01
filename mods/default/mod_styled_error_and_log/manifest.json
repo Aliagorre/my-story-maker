@@ -4,6 +4,7 @@
     "entrypoint": "main.py",
     "type": "extension",
     "priority": 110,
+    "active": false,
     "requires": {},
     "conflicts": {},
     "permissions": []
