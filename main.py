@@ -73,17 +73,20 @@ mod_loader = ModLoader(
     ),
 )
 
-core._mod_storage = mod_loader.mod_storage
+core._mod_storage = mod_loader.mod_storage  # type:ignore
 
 mod_loader.load_all()
 
-while True:
-    event_bus.emit(
-        {
-            "name": ENGINE_TICK,
-            "source": "core",
-            "payload": {},
-            "timestamp": int(time.time()),
-        }
-    )
-    time.sleep(0.1)
+try:
+    while True:
+        event_bus.emit(
+            {
+                "name": ENGINE_TICK,
+                "source": "core",
+                "payload": {},
+                "timestamp": int(time.time()),
+            }
+        )
+        time.sleep(0.1)
+except KeyboardInterrupt:
+    mod_loader.shutdown()

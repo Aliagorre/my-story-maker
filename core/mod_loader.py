@@ -1,24 +1,26 @@
 # core/mod_loader.py
 
-from pathlib import Path
-
-from core.__dependency import DependencyModule  # Modules 4 + 5
-from core.__discovery import ModDiscovery  # Module 2
-from core.__dynamic_loader import DynamicLoader  # Module 6
-from core.__lifecycle import InitExecutor, ReadyExecutor, ShutdownExecutor  # Module 7
-from core.__manifest import ManifestLoader, ManifestProcessor  # Module 3
+from core.__dependency import DependencyModule
+from core.__discovery import ModDiscovery
+from core.__dynamic_loader import DynamicLoader
+from core.__lifecycle import InitExecutor, ReadyExecutor, ShutdownExecutor
+from core.__manifest import ManifestLoader, ManifestProcessor
 from core.__mod_storage import ModStorage
-from resources.EVENTS import ENGINE_BOOT, ENGINE_INIT, MOD_DISCOVERED
+from resources.EVENTS import ENGINE_BOOT, ENGINE_INIT, ENGINE_SHUTDOWN
 from resources.LOG_LEVELS import ERROR, INFO
 
 
 class ModLoader:
+    """Orchestrates the full mod lifecycle: discovery, validation, loading, init, and shutdown."""
+
     def __init__(self, core, log, emit, emit_error):
-        """
-        core  : Core API (emit, log, services, etc.)
-        log   : fonction (level, message)
-        emit  : fonction (event_name, payload)
-        emit_error : fonction (event_name, payload) pour erreurs
+        """Set up the loader and all pipeline sub-modules.
+
+        Args:
+            core: CoreAPI instance exposed to mods.
+            log: Callable(level, message) used for internal logging.
+            emit: Callable(event_name, payload) for normal events.
+            emit_error: Callable(event_name, payload) for error events.
         """
         self.core = core
         self.log = log
@@ -27,8 +29,8 @@ class ModLoader:
 
         self.mod_storage = ModStorage()
 
-        # sous-modules
-        self.discovery = ModDiscovery(log, emit, emit_error)
+        # Fixed: ModDiscovery expects (log, emit_error, emit) — they were swapped.
+        self.discovery = ModDiscovery(log, emit_error, emit)
         self.manifest_loader = ManifestLoader(log, emit_error)
         self.manifest_processor = ManifestProcessor
         self.dependency_module = DependencyModule(log, emit_error)
@@ -37,25 +39,32 @@ class ModLoader:
         self.ready_executor = ReadyExecutor
         self.shutdown_executor = ShutdownExecutor(core, log)
 
-    def load_all(self):
+    def load_all(self) -> None:
+        """Run the complete loading pipeline and bring the engine to the READY state.
+
+        Stages in order:
+        1. ENGINE_BOOT event
+        2. Mod discovery (scan canonical directories)
+        3. Manifest reading, validation and storage
+        4. Dependency resolution and load-order calculation
+        5. Dynamic import and on_load execution
+        6. ENGINE_INIT event + on_init execution
+        7. ENGINE_READY event (triggers subscribed on_ready handlers)
+        """
         self.emit(ENGINE_BOOT, {})
         self.log(INFO, "[ModLoader] ENGINE_BOOT")
-        # 1. Discovery sur les chemins canoniques (définis en dur dans ModDiscovery)
         self.discovery.discover_mods(self.mod_storage)
-        # 2. Manifests : lecture + validation + stockage
         self.manifest_loader.run_manifest_pipeline(self.mod_storage)
-        # 3. Résolution des dépendances
         self.dependency_module.run(self.mod_storage)
-        # 4. Chargement dynamique (on_load)
         self.dynamic_loader.run_dynamic_loading(self.mod_storage)
-        # 5. ENGINE_INIT + on_init
         self.emit(ENGINE_INIT, {})
         self.init_executor.run_on_init(self.mod_storage)
-        # 6. ENGINE_READY (on_ready via EventBus)
         self.ready_executor.run_on_ready(self.emit)
 
-    def shutdown(self):
+    def shutdown(self) -> None:
+        """Emit ENGINE_SHUTDOWN, then call on_shutdown on all loaded mods in reverse order."""
         try:
+            self.emit(ENGINE_SHUTDOWN, {})
             self.shutdown_executor.run_on_shutdown(self.mod_storage)
         except Exception as e:
             self.log(ERROR, f"[ModLoader] shutdown error: {e}")

@@ -26,82 +26,146 @@ from core.event_bus import EventBus
 from core.service_registry import ServiceRegistry
 
 # ============================
-# Test ServiceRegistry 
+# Shared mock callables
 # ============================
 
 logs = []
 emitted = []
 errors = []
 
+
 def mocks_log(level, msg):
     logs.append((level, msg))
 
+
 def mocks_emit_error(event, payload):
     errors.append((event, payload))
+
 
 def mocks_emit(event, payload):
     emitted.append((event, payload))
 
 
+# ============================
+# ServiceRegistry
+# ============================
+
 service_registry = ServiceRegistry(mocks_log, mocks_emit)
 
-assert service_registry.register("test1", "instance1"), "test1.1 not pass : test1 must be registered"
-assert service_registry.exists("test1")               , "test1.2 not pass : test1 must exist"
-assert service_registry.get("test1") == "instance1"   , "test1.3 not pass : expect 'instance1'"
+assert service_registry.register("test1", "instance1"), (
+    "test1.1 not pass : test1 must be registered"
+)
+assert service_registry.exists("test1"), "test1.2 not pass : test1 must exist"
+assert service_registry.get("test1") == "instance1", (
+    "test1.3 not pass : expect 'instance1'"
+)
 
-assert service_registry.register("test2", "instance2.1")    , "test2.1 not pass : test2 must be registered"
-assert not service_registry.register("test2", "instance2.2"), "test2.2 not pass : duplicate must not be registered"
-assert service_registry.get("test2") == "instance2.1"       , "test2.5 not pass : duplicate must not shadow the first one"
+assert service_registry.register("test2", "instance2.1"), (
+    "test2.1 not pass : test2 must be registered"
+)
+assert not service_registry.register("test2", "instance2.2"), (
+    "test2.2 not pass : duplicate must not be registered"
+)
+assert service_registry.get("test2") == "instance2.1", (
+    "test2.5 not pass : duplicate must not shadow the first one"
+)
 
-assert service_registry.get("unknown") is None , "test3.1 not pass : expect nothing"
+assert service_registry.get("unknown") is None, "test3.1 not pass : expect nothing"
 
-assert service_registry.unregister("test1")      , "test4.1 not pass : test1 must be removed"
-assert service_registry.unregister("test2")      , "test4.2 not pass : test2 must be removed"
-assert not service_registry.unregister("unknown"), "test4.3 not pass : unknown should not exist"
+assert service_registry.unregister("test1"), "test4.1 not pass : test1 must be removed"
+assert service_registry.unregister("test2"), "test4.2 not pass : test2 must be removed"
+assert not service_registry.unregister("unknown"), (
+    "test4.3 not pass : unknown should not exist"
+)
 
-assert service_registry.register("test5_1", "instance5.1"), "test5.1 not pass : test5_1 must be registered"
-assert service_registry.register("test5_2", "instance5.2"), "test5.2 not pass : test5_2 must be registered"
-assert service_registry.register("test5_3", "instance5.3"), "test5.3 not pass : test5_3 must be registered"
-assert service_registry.list_services() == ['test5_1', 'test5_2', 'test5_3'], "test5.1 not pass : bad list return"
+assert service_registry.register("test5_1", "instance5.1"), (
+    "test5.1 not pass : test5_1 must be registered"
+)
+assert service_registry.register("test5_2", "instance5.2"), (
+    "test5.2 not pass : test5_2 must be registered"
+)
+assert service_registry.register("test5_3", "instance5.3"), (
+    "test5.3 not pass : test5_3 must be registered"
+)
+assert service_registry.list_services() == ["test5_1", "test5_2", "test5_3"], (
+    "test5 not pass : bad list return"
+)
 
-assert not service_registry.register("Test6.1", "instance6"), "test6.1 not pass : test6.1 must not be register because of snake_case"
-assert not service_registry.register("test6.2", None)       , "test6.2 not pass : test6.2 must not be register because of None instance"
+assert not service_registry.register("Test6.1", "instance6"), (
+    "test6.1 not pass : must not register — not snake_case"
+)
+assert not service_registry.register("test6.2", None), (
+    "test6.2 not pass : must not register — None instance"
+)
 
 # ============================
-# Test EventBus 
+# EventBus
 # ============================
 
 event_bus = EventBus(mocks_log, mocks_emit)
-def subscribe7() : print("subscribe7")
-assert event_bus.subscribe("MOD_ERROR", subscribe7), "test7.1 : subscribe7 must be subscribe"
 
-def subscribe8() : print("subscribe8")
-assert not event_bus.subscribe("UNKNOWN", subscribe8), "test8.1 : subscribe8 must not be subscribe"
 
-assert event_bus.emit({"name":"MOD_ERROR","source":"test","payload":{},"timestamp": 0}),"test9.1 : must print subscribe7"
+def subscribe7():
+    print("subscribe7")
 
-def subscribe10() : raise Exception("Intentional error")
-assert event_bus.subscribe("MOD_ERROR", subscribe10), "test10.1 : subscribe10 must be subscribe"
-assert event_bus.emit({"name":"MOD_ERROR","source":"test","payload":{},"timestamp": 0}),"test10.2 : must print subscribe7 and an error logged"
 
-assert event_bus.unsubscribe("MOD_ERROR", subscribe10)   , "test 11.1 : subscribe10 must unsubscribe"
-assert event_bus.unsubscribe("MOD_ERROR", subscribe7)    , "test 11.2 : subscribe7 must unsubscribe"
-assert not event_bus.unsubscribe("MOD_ERROR", subscribe8), "test 11.3 : unknown handlers can't unsubscribe"
+assert event_bus.subscribe("MOD_ERROR", subscribe7), (
+    "test7.1 : subscribe7 must be subscribed"
+)
+
+
+def subscribe8():
+    print("subscribe8")
+
+
+assert not event_bus.subscribe("UNKNOWN", subscribe8), (
+    "test8.1 : subscribe8 must not subscribe to unknown event"
+)
+
+assert event_bus.emit(
+    {"name": "MOD_ERROR", "source": "test", "payload": {}, "timestamp": 0}
+), "test9.1 : must call subscribe7"
+
+
+def subscribe10():
+    raise Exception("Intentional error")
+
+
+assert event_bus.subscribe("MOD_ERROR", subscribe10), (
+    "test10.1 : subscribe10 must be subscribed"
+)
+assert event_bus.emit(
+    {"name": "MOD_ERROR", "source": "test", "payload": {}, "timestamp": 0}
+), "test10.2 : must call subscribe7 and log an error for subscribe10"
+
+assert event_bus.unsubscribe("MOD_ERROR", subscribe10), (
+    "test11.1 : subscribe10 must unsubscribe"
+)
+assert event_bus.unsubscribe("MOD_ERROR", subscribe7), (
+    "test11.2 : subscribe7 must unsubscribe"
+)
+assert not event_bus.unsubscribe("MOD_ERROR", subscribe8), (
+    "test11.3 : unknown handler cannot unsubscribe"
+)
+
 
 async def async_handler(event):
     print("async handler OK")
 
+
 event_bus.subscribe("MOD_ERROR", async_handler)
 
+
 async def test_async():
-    event = {"name":"MOD_ERROR","source":"test","payload":{},"timestamp":0}
+    event = {"name": "MOD_ERROR", "source": "test", "payload": {}, "timestamp": 0}
     event_bus.emit(event)
     await asyncio.sleep(0.1)
+
 
 asyncio.run(test_async())
 
 # ============================
-# Test ModStorage 
+# ModStorage
 # ============================
 
 mod_storage = ModStorage()
@@ -130,8 +194,6 @@ assert isinstance(mod_storage.instances["mod_test"], object)
 assert mod_storage.paths["mod_test"] == Path("mods/mod_test")
 assert mod_storage.dependencies["mod_test"] == ["mod_core"]
 assert mod_storage.load_order == ["mod_test"]
-assert mod_storage.load_order == ["mod_test"]
-assert mod_storage.load_order == ["mod_test"]
 
 # ============================
 # Version
@@ -139,6 +201,9 @@ assert mod_storage.load_order == ["mod_test"]
 
 assert VersionComparator.compare(Version.parse("1.*.3"), Version.parse("1.4.3")) == 0
 assert VersionComparator.compare(Version.parse("1.2.0"), Version.parse("1.3.0")) == -1
+
+# Multi-digit segment comparison (would fail if stored as strings: "9" > "10")
+assert VersionComparator.compare(Version.parse("1.9.0"), Version.parse("1.10.0")) == -1
 
 c1 = ConstraintParser.parse(">=1.2.0,<2.0.0")
 assert ConstraintResolver.satisfies(Version.parse("1.5.3"), c1)
@@ -155,10 +220,9 @@ c4 = ConstraintParser.parse("1.2.3")
 assert ConstraintResolver.satisfies(Version.parse("1.2.3"), c4)
 assert not ConstraintResolver.satisfies(Version.parse("1.2.4"), c4)
 
-
-# ==========================
+# ============================
 # Manifest
-# ==========================
+# ============================
 
 with tempfile.TemporaryDirectory() as tmp:
     tmp_dir = Path(tmp)
@@ -193,7 +257,7 @@ with tempfile.TemporaryDirectory() as tmp:
         "priority": 1,
         "requires": {},
         "conflicts": {},
-        "permissions": []
+        "permissions": [],
     }
 
     errors = ManifestValidator.validate(valid_manifest, valid_dir)
@@ -205,9 +269,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "miss entrypoint" in errors
     assert "miss type" in errors
     assert "miss priority" in errors
-    assert "miss requires " in errors
+    assert "miss requires" in errors  # was "miss requires " (trailing space) — bug
     assert "miss conflicts" in errors
-#    assert "miss permissions" in errors
 
     invalid_manifest = {
         "name": 123,
@@ -217,7 +280,7 @@ with tempfile.TemporaryDirectory() as tmp:
         "priority": "high",
         "requires": [],
         "conflicts": [],
-        "permissions": {}
+        "permissions": {},
     }
 
     errors = ManifestValidator.validate(invalid_manifest, valid_dir)
@@ -293,33 +356,31 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "mod1" in storage.manifests
     assert len(emitted) >= 1
 
-# =========================
+# ============================
 # Dependency
-# =========================
+# ============================
 
 
 def make_mod(name, version, requires=None, conflicts=None, priority=0):
     return {
         "name": name,
         "version": Version.parse(version),
-        "requires": {
-            k: ConstraintParser.parse(v)
-            for k, v in (requires or {}).items()
-        },
+        "requires": {k: ConstraintParser.parse(v) for k, v in (requires or {}).items()},
         "conflicts": {
-            k: ConstraintParser.parse(v)
-            for k, v in (conflicts or {}).items()
+            k: ConstraintParser.parse(v) for k, v in (conflicts or {}).items()
         },
-        "priority": priority
+        "priority": priority,
     }
 
-#  DEPENDENCY OK
+
+# DEPENDENCY OK
 
 storage = ModStorage()
 storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}),
-    "B": make_mod("B", "1.0.0")}
-storage.states = {"A": "enable","B": "enable"}
+    "B": make_mod("B", "1.0.0"),
+}
+storage.states = {"A": "enable", "B": "enable"}
 DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "enable"
 assert storage.states["B"] == "enable"
@@ -328,7 +389,7 @@ assert "B" in storage.load_order
 
 # MISSING DEPENDENCY
 
-errors.clear()
+errors = []
 storage = ModStorage()
 storage.manifests = {"A": make_mod("A", "1.0.0", {"B": "*"})}
 storage.states = {"A": "enable"}
@@ -338,80 +399,84 @@ assert any(e[0] == "MOD_DEPENDENCY_ERROR" for e in errors)
 
 # DISABLED DEPENDENCY
 
-errors.clear()
+errors = []
 storage = ModStorage()
 storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}),
-    "B": make_mod("B", "1.0.0")}
-storage.states = {"A": "enable","B": "disable"}
+    "B": make_mod("B", "1.0.0"),
+}
+storage.states = {"A": "enable", "B": "disable"}
 DependencyModule(mocks_log, mocks_emit_error).run(storage)
 assert storage.states["A"] == "disable"
 
 # VERSION INCOMPATIBLE
 
-errors.clear()
+errors = []
 storage = ModStorage()
 storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": ">=2.0.0"}),
-    "B": make_mod("B", "1.0.0")}
-storage.states = {"A": "enable","B": "enable"}
+    "B": make_mod("B", "1.0.0"),
+}
+storage.states = {"A": "enable", "B": "enable"}
 DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "disable"
 
 # CONFLICT
 
-errors.clear()
+errors = []
 storage = ModStorage()
 storage.manifests = {
     "A": make_mod("A", "1.0.0", conflicts={"B": "*"}),
-    "B": make_mod("B", "1.0.0")}
-storage.states = {"A": "enable","B": "enable"}
+    "B": make_mod("B", "1.0.0"),
+}
+storage.states = {"A": "enable", "B": "enable"}
 DependencyModule(mocks_log, mocks_emit_error).run(storage)
 assert storage.states["A"] == "disable"
 assert any(e[0] == "MOD_CONFLICT" for e in errors)
 
-#  CYCLE DETECTION
+# CYCLE DETECTION
 
-errors.clear()
+errors = []
 storage = ModStorage()
 storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}),
-    "B": make_mod("B", "1.0.0", {"A": "*"})}
-storage.states = {"A": "enable","B": "enable"}
+    "B": make_mod("B", "1.0.0", {"A": "*"}),
+}
+storage.states = {"A": "enable", "B": "enable"}
 DependencyModule(mocks_log, mocks_emit).run(storage)
 assert storage.states["A"] == "disable"
 assert storage.states["B"] == "disable"
 
-#  TOPO ORDER
+# TOPOLOGICAL ORDER
 
 storage = ModStorage()
 storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}),
     "B": make_mod("B", "1.0.0", {"C": "*"}),
-    "C": make_mod("C", "1.0.0")
+    "C": make_mod("C", "1.0.0"),
 }
-storage.states = {"A": "enable","B": "enable","C": "enable"}
+storage.states = {"A": "enable", "B": "enable", "C": "enable"}
 DependencyModule(mocks_log, mocks_emit).run(storage)
 order = storage.load_order
 assert order.index("C") < order.index("B")
 assert order.index("B") < order.index("A")
 
-#  PRIORITY (SANS CASSER TOPO)
+# PRIORITY (must not break topological order)
 
 storage = ModStorage()
 storage.manifests = {
     "A": make_mod("A", "1.0.0", {"B": "*"}, priority=10),
-    "B": make_mod("B", "1.0.0", priority=0)}
-storage.states = {"A": "enable","B": "enable"}
+    "B": make_mod("B", "1.0.0", priority=0),
+}
+storage.states = {"A": "enable", "B": "enable"}
 DependencyModule(mocks_log, mocks_emit).run(storage)
 order = storage.load_order
-# B doit rester avant A (dépendance)
 assert order.index("B") < order.index("A")
 
+# ============================
+# DummyCore + DynamicLoader
+# ============================
 
-# =========================
-# DUMMY CORE + STORAGE
-# =========================
 
 class DummyCore:
     def __init__(self):
@@ -435,6 +500,7 @@ class DummyCore:
     def log(self, *args, **kwargs):
         pass
 
+
 logs = []
 emitted = []
 errors = []
@@ -443,20 +509,17 @@ errors = []
 def write_mod(tmpdir, name, code):
     mod_dir = tmpdir / name
     mod_dir.mkdir()
-    file = mod_dir / "main.py"
-    file.write_text(code)
+    (mod_dir / "main.py").write_text(code)
     return mod_dir
 
+
 def make_manifest():
-    return {
-        "entrypoint": "main.py",
-        "version": Version.parse("1.0.0")
-    }
+    return {"entrypoint": "main.py", "version": Version.parse("1.0.0")}
+
 
 tmp = Path(tempfile.mkdtemp())
 
 try:
-
     # 1. SUCCESS LOAD
 
     storage = ModStorage()
@@ -473,7 +536,9 @@ class Mod:
     storage.manifests["mod_ok"] = make_manifest()
     storage.states["mod_ok"] = "enable"
     storage.load_order = ["mod_ok"]
-    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(storage)
+    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(
+        storage
+    )
     assert storage.instances["mod_ok"] is not None
     assert any(e[0] == "MOD_LOADED" for e in emitted)
 
@@ -482,10 +547,15 @@ class Mod:
     storage = ModStorage()
     emitted.clear()
     storage.paths["mod_bad"] = tmp
-    storage.manifests["mod_bad"] = {"entrypoint": "missing.py", "version": Version.parse("1.0.0")}
+    storage.manifests["mod_bad"] = {
+        "entrypoint": "missing.py",
+        "version": Version.parse("1.0.0"),
+    }
     storage.states["mod_bad"] = "enable"
     storage.load_order = ["mod_bad"]
-    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(storage)
+    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(
+        storage
+    )
     assert storage.states["mod_bad"] == "disable"
     assert storage.instances.get("mod_bad") is None
 
@@ -501,10 +571,12 @@ class NotMod:
     storage.manifests["mod_noclass"] = make_manifest()
     storage.states["mod_noclass"] = "enable"
     storage.load_order = ["mod_noclass"]
-    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(storage)
+    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(
+        storage
+    )
     assert storage.states["mod_noclass"] == "disable"
 
-    # 4. BAD CONSTRUCTOR
+    # 4. BAD CONSTRUCTOR (requires an argument — instantiation fails)
 
     storage = ModStorage()
     code = """
@@ -512,15 +584,17 @@ class Mod:
     def __init__(self, x): pass
     def on_load(self, core): pass
     def on_init(self, core): pass
-    def on_ready(self): pass
-    def on_shutdown(self): pass
+    def on_ready(self, event): pass
+    def on_shutdown(self, core): pass
 """
     path = write_mod(tmp, "mod_ctor", code)
     storage.paths["mod_ctor"] = path
     storage.manifests["mod_ctor"] = make_manifest()
     storage.states["mod_ctor"] = "enable"
     storage.load_order = ["mod_ctor"]
-    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(storage)
+    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(
+        storage
+    )
     assert storage.states["mod_ctor"] == "disable"
 
     # 5. MISSING HOOK
@@ -535,29 +609,32 @@ class Mod:
     storage.manifests["mod_hook"] = make_manifest()
     storage.states["mod_hook"] = "enable"
     storage.load_order = ["mod_hook"]
-    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(storage)
+    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(
+        storage
+    )
     assert storage.states["mod_hook"] == "disable"
 
     # 6. on_load EXCEPTION
 
     storage = ModStorage()
-
     code = """
 class Mod:
     def on_load(self, core): raise Exception("fail")
     def on_init(self, core): pass
-    def on_ready(self): pass
-    def on_shutdown(self): pass
+    def on_ready(self, event): pass
+    def on_shutdown(self, core): pass
 """
     path = write_mod(tmp, "mod_crash", code)
     storage.paths["mod_crash"] = path
     storage.manifests["mod_crash"] = make_manifest()
     storage.states["mod_crash"] = "enable"
     storage.load_order = ["mod_crash"]
-    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(storage)
+    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(
+        storage
+    )
     assert storage.states["mod_crash"] == "disable"
 
-    # 7. MULTI MOD LOAD ORDER
+    # 7. MULTI-MOD LOAD ORDER
 
     storage = ModStorage()
     emitted.clear()
@@ -577,40 +654,53 @@ class Mod:
     storage.states["mod1"] = "enable"
     storage.states["mod2"] = "enable"
     storage.load_order = ["mod1", "mod2"]
-    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(storage)
+    DynamicLoader(core, mocks_log, mocks_emit_error, mocks_emit).run_dynamic_loading(
+        storage
+    )
     assert storage.instances["mod1"] is not None
     assert storage.instances["mod2"] is not None
     loaded = [e[1]["mod"] for e in emitted if e[0] == "MOD_LOADED"]
     assert loaded == ["mod1", "mod2"]
+
 finally:
     shutil.rmtree(tmp)
 
-# =========================
-# DUMMY CORE + STORAGE
-# =========================
+# ============================
+# Lifecycle executors
+# ============================
 
 logs = []
 errors = []
 emitted = []
 
-# DUMMY MODS
+
 class GoodMod:
     def __init__(self):
         self.init_called = False
         self.shutdown_called = False
-    def on_load(self, core): pass
+
+    def on_load(self, core):
+        pass
+
     def on_init(self, core):
         self.init_called = True
-    def on_ready(self): pass
+
+    def on_ready(self, event):
+        pass
+
     def on_shutdown(self, core):
         self.shutdown_called = True
+
 
 class CrashInitMod(GoodMod):
     def on_init(self, core):
         raise Exception("init fail")
+
+
 class CrashShutdownMod(GoodMod):
     def on_shutdown(self, core):
         raise Exception("shutdown fail")
+
 
 # 1. INIT SUCCESS
 
@@ -627,8 +717,8 @@ assert any(e[0] == "MOD_INITIALIZED" for e in emitted)
 
 # 2. INIT FAILURE
 
-errors.clear()
-emitted.clear()
+errors = []
+emitted = []
 storage = ModStorage()
 mod = CrashInitMod()
 storage.instances["A"] = mod
@@ -649,12 +739,11 @@ storage.states["A"] = "enable"
 storage.errors["A"] = []
 storage.load_order = ["A"]
 InitExecutor(core, mocks_log, mocks_emit_error, mocks_emit).run_on_init(storage)
-# rien ne doit se passer
-assert True
+assert True  # must not raise
 
 # 4. ENGINE_READY EVENT
 
-emitted.clear()
+emitted = []
 ReadyExecutor.run_on_ready(mocks_emit)
 assert any(e[0] == "ENGINE_READY" for e in emitted)
 
@@ -668,27 +757,29 @@ storage.load_order = ["A"]
 ShutdownExecutor(core, mocks_log).run_on_shutdown(storage)
 assert mod.shutdown_called is True
 
-# 6. SHUTDOWN FAILURE (NO CRASH)
+# 6. SHUTDOWN FAILURE (must not raise)
 
-logs.clear()
+logs = []
 storage = ModStorage()
 mod = CrashShutdownMod()
 storage.instances["A"] = mod
 storage.states["A"] = "enable"
 storage.load_order = ["A"]
 ShutdownExecutor(core, mocks_log).run_on_shutdown(storage)
-# ne doit pas planter
-assert True
+assert True  # must not raise
 
-# 7. SHUTDOWN ORDER (REVERSED)
+# 7. SHUTDOWN ORDER (reversed load order)
 
 order = []
+
+
 class TrackMod(GoodMod):
     def __init__(self, name):
         self.name = name
 
     def on_shutdown(self, core):
         order.append(self.name)
+
 
 storage = ModStorage()
 storage.instances["A"] = TrackMod("A")
@@ -711,19 +802,25 @@ storage.load_order = ["A", "B"]
 ShutdownExecutor(core, mocks_log).run_on_shutdown(storage)
 assert order == ["B"]
 
-logs.clear()
-emitted.clear()
+# ============================
+# CoreAPI
+# ============================
+
+logs = []
+emitted = []
+
 
 def EB_mocks_emit(event):
     emitted.append(event)
     return True
+
 
 storage = ModStorage()
 api = CoreAPI(
     event_bus=type("EB", (), {"emit": EB_mocks_emit}),
     service_registry=None,
     mod_storage=storage,
-    log=mocks_log
+    log=mocks_log,
 )
 api.emit("TEST_EVENT", {"x": 1})
 assert len(emitted) == 1
@@ -732,41 +829,52 @@ assert event["name"] == "TEST_EVENT"
 assert event["payload"] == {"x": 1}
 
 calls = []
+
+
 def fake_subscribe(event, cb):
     calls.append((event, cb))
     return True
+
+
 api = CoreAPI(
     event_bus=type("EB", (), {"subscribe": fake_subscribe}),
     service_registry=None,
     mod_storage=None,
-    log=mocks_log
+    log=mocks_log,
 )
-def handler(evt): pass
+
+
+def handler(evt):
+    pass
+
+
 api.subscribe("EVT", handler)
 assert calls == [("EVT", handler)]
 
-logs.clear()
-errors.clear()
+logs = []
+errors = []
+
+
 class DummyRegistry:
     def register(self, name, inst):
         logs.append(("reg", name, inst))
         return True
+
     def get(self, name):
         logs.append(("get", name))
         return 123
+
+
 api = CoreAPI(
     event_bus=None,
     service_registry=DummyRegistry(),
     mod_storage=None,
-    log=mocks_log
+    log=mocks_log,
 )
 api.register_service("svc", 42)
 value = api.get_service("svc")
 assert value == 123
-assert logs == [
-    ("reg", "svc", 42),
-    ("get", "svc")
-]
+assert logs == [("reg", "svc", 42), ("get", "svc")]
 
 storage = ModStorage()
 storage.instances["A"] = object()
@@ -775,46 +883,40 @@ api = CoreAPI(
     event_bus=None,
     service_registry=None,
     mod_storage=storage,
-    log=mocks_log
+    log=mocks_log,
 )
 assert api.get_mod("A") is storage.instances["A"]
 assert api.get_manifest("A") == {"name": "A"}
 
 storage = ModStorage()
-storage.states = {
-    "A": "enable",
-    "B": "disable",
-    "C": "enable"
-}
+storage.states = {"A": "enable", "B": "disable", "C": "enable"}
 api = CoreAPI(
     event_bus=None,
     service_registry=None,
     mod_storage=storage,
-    log=mocks_log
+    log=mocks_log,
 )
 mods = api.get_all_mods()
 assert set(mods) == {"A", "C"}
 
-logs.clear()
+logs = []
 api = CoreAPI(
     event_bus=None,
     service_registry=None,
     mod_storage=None,
-    log=mocks_log
+    log=mocks_log,
 )
 api.log("INFO", "hello")
 assert logs == [("INFO", "hello")]
 
 storage = ModStorage()
 storage.manifests["core_engine"] = {"version": "1.2.3"}
-
 api = CoreAPI(
     event_bus=None,
     service_registry=None,
     mod_storage=storage,
-    log=mocks_log
+    log=mocks_log,
 )
-
 assert api.get_core_version() == "1.2.3"
 
 print("ALL TESTS PASSED")
