@@ -5,8 +5,8 @@ import inspect
 import sys
 
 from core.__mod_storage import ModStorage
-from EVENTS import MOD_ERROR, MOD_LOADED
-from LOG_LEVELS import DEBUG, ERROR
+from resources.EVENTS import MOD_ERROR, MOD_LOADED
+from resources.LOG_LEVELS import DEBUG, ERROR
 
 
 class DynamicLoader:
@@ -18,10 +18,11 @@ class DynamicLoader:
 
     def run_dynamic_loading(self, mod_storage: ModStorage):
         """
-Import mod
-Instance main class' mod 
-Call on_load
+        Import mod
+        Instance main class' mod
+        Call on_load
         """
+
         def disable_mod(mod, error_msg, payload) -> None:
             mod_storage.states[mod] = "disable"
             mod_storage.instances[mod] = None
@@ -35,8 +36,7 @@ Call on_load
             if mod_storage.states.get(mod) == "disable":
                 continue
             entrypoint_path = (
-                mod_storage.paths[mod]
-                / mod_storage.manifests[mod]["entrypoint"]
+                mod_storage.paths[mod] / mod_storage.manifests[mod]["entrypoint"]
             )
             # 1. import module
             module = EntrypointLoader.import_from_path(entrypoint_path)
@@ -62,11 +62,12 @@ Call on_load
             mod_storage.instances[mod] = instance
             self.emit(MOD_LOADED, {"mod": mod})
 
+
 class EntrypointLoader:
     @staticmethod
-    def import_from_path(path) :
+    def import_from_path(path):
         """
-Charge mod module in environnement and return it.
+        Charge mod module in environnement and return it.
         """
         try:
             if not path.exists() or not path.is_file():
@@ -87,7 +88,7 @@ Charge mod module in environnement and return it.
     @staticmethod
     def get_main_class(module):
         """
-Return main class from a module
+        Return main class from a module
         """
         try:
             if not hasattr(module, "Mod"):
@@ -98,6 +99,7 @@ Return main class from a module
             return cls
         except Exception:
             return None
+
 
 class ModInstantiator:
     @staticmethod
@@ -118,12 +120,13 @@ class ModInstantiator:
         except Exception:
             return None
 
+
 class LoadExecutor:
     @staticmethod
     def run_on_load(instance, core, log) -> bool:
         """
-call on_load method from mod instance
-Return True in success
+        call on_load method from mod instance
+        Return True in success
         """
         try:
             instance.on_load(core)
@@ -131,4 +134,3 @@ Return True in success
         except Exception as e:
             log(DEBUG, f"[on_load error] {e}")
             return False
-        

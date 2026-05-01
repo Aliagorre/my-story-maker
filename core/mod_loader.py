@@ -8,8 +8,8 @@ from core.__dynamic_loader import DynamicLoader  # Module 6
 from core.__lifecycle import InitExecutor, ReadyExecutor, ShutdownExecutor  # Module 7
 from core.__manifest import ManifestLoader, ManifestProcessor  # Module 3
 from core.__mod_storage import ModStorage
-from EVENTS import ENGINE_BOOT, ENGINE_INIT, MOD_DISCOVERED
-from LOG_LEVELS import ERROR, INFO
+from resources.EVENTS import ENGINE_BOOT, ENGINE_INIT, MOD_DISCOVERED
+from resources.LOG_LEVELS import ERROR, INFO
 
 
 class ModLoader:

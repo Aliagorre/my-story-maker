@@ -1,4 +1,4 @@
-from LOG_LEVELS import CRITICAL, DEBUG, ERROR, INFO, WARNING
+from ressources.LOG_LEVELS import CRITICAL, DEBUG, ERROR, INFO, WARNING
 
 
 class Mod:
@@ -23,11 +23,9 @@ class Mod:
     # --- service logger ---
     def log(self, level, source, message):
         # tout passe par LOG_EVENT
-        self.core.emit("LOG_EVENT", {
-            "level": level,
-            "source": source,
-            "message": message
-        })
+        self.core.emit(
+            "LOG_EVENT", {"level": level, "source": source, "message": message}
+        )
 
     # --- handlers : ils utilisent le service, pas print() ---
     def on_engine_event(self, event):
@@ -55,7 +53,11 @@ class Mod:
         with open("engine.log", "a", encoding="utf-8") as f:
             f.write(f"[{level}] [{source}] {message}\n")
 
+    def on_init(self, core):
+        pass
 
-    def on_init(self, core): pass
-    def on_ready(self, event): pass
-    def on_shutdown(self, core): pass
+    def on_ready(self, event):
+        pass
+
+    def on_shutdown(self, core):
+        pass

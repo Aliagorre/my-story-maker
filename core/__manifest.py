@@ -7,204 +7,214 @@ from typing import Callable
 
 from core.__mod_storage import ModStorage
 from core.__version import ConstraintParser, Version
-from EVENTS import MOD_MANIFEST_ERROR
-from LOG_LEVELS import DEBUG
-from MOD_TYPE import MOD_TYPES
+from resources.EVENTS import MOD_MANIFEST_ERROR
+from resources.LOG_LEVELS import DEBUG
+from resources.MOD_TYPES import MOD_TYPES
 
 
-def is_snake_case(string:str) -> bool :
-    if not string :
+def is_snake_case(string: str) -> bool:
+    if not string:
         return False
-    else :
-        return all("a" <= x <= "z" or "0" <= x <= "9" or x == "_"  for x in string)
+    else:
+        return all("a" <= x <= "z" or "0" <= x <= "9" or x == "_" for x in string)
 
-class ManifestLoader :
-    def __init__(self, log : Callable, emit_error : Callable ) -> None:
+
+class ManifestLoader:
+    def __init__(self, log: Callable, emit_error: Callable) -> None:
         self.log = log
         self.emit_error = emit_error
 
-    def run_manifest_pipeline(self, mod_storage : ModStorage) -> None :
+    def run_manifest_pipeline(self, mod_storage: ModStorage) -> None:
         """
-read manifest and store it.
-parse version to version object
+        read manifest and store it.
+        parse version to version object
         """
-        for mod in mod_storage.states :
-            if mod_storage.states[mod] == "discovered" :
+        for mod in mod_storage.states:
+            if mod_storage.states[mod] == "discovered":
                 mod_dir = mod_storage.paths[mod]
                 manifest_dict = ManifestReader.read(mod_dir)
-                if len(manifest_dict) == 0 :
+                if len(manifest_dict) == 0:
                     mod_storage.states[mod] = "disable"
                     self.emit_error(MOD_MANIFEST_ERROR, {})
                     self.log(DEBUG, "incorrect manifest for {mod}")
                     continue
                 errors = ManifestValidator.validate(manifest_dict, mod_dir)
-                for error in errors :
+                for error in errors:
                     self.log(DEBUG, error)
                 ManifestProcessor.store(mod, manifest_dict, mod_storage, errors)
 
-class ManifestReader :
+
+class ManifestReader:
     @staticmethod
-    def read(mod_path : Path) -> dict :
+    def read(mod_path: Path) -> dict:
         """
-return dict from manifest.json
+        return dict from manifest.json
         """
-        manifest_path = mod_path / "manifest.json" # It is a file, not a directory, no ?
+        manifest_path = (
+            mod_path / "manifest.json"
+        )  # It is a file, not a directory, no ?
         try:
             with manifest_path.open("r", encoding="utf-8") as f:
                 manifest = json.load(f)
-                if not isinstance(manifest, dict) :
+                if not isinstance(manifest, dict):
                     return {}
                 return manifest
-        except (json.JSONDecodeError, FileNotFoundError) :
+        except (json.JSONDecodeError, FileNotFoundError):
             return {}
 
-class ManifestValidator :
+
+class ManifestValidator:
     @staticmethod
-    def rule_name_format(manifest : dict) -> None|str:
+    def rule_name_format(manifest: dict) -> None | str:
         """
-return name errors
+        return name errors
         """
-        if "name" not in manifest :
+        if "name" not in manifest:
             return "miss name"
         name = manifest["name"]
-        if not isinstance(name, str) :
+        if not isinstance(name, str):
             return "name isn't str"
-        if name[:4] != "mod_" :
+        if name[:4] != "mod_":
             return f"{name} isn't mod's name"
-        if not is_snake_case(name) :
+        if not is_snake_case(name):
             return f"{name} isn't snake case"
-        
+
     @staticmethod
-    def rule_version_semver(manifest : dict) -> None|str:
+    def rule_version_semver(manifest: dict) -> None | str:
         """
-return semVer errors
+        return semVer errors
         """
-        if "version" not in manifest :
+        if "version" not in manifest:
             return "miss version"
         version = manifest["version"]
-        if not isinstance(version, str) :
+        if not isinstance(version, str):
             return "version isn't str"
-        if Version.parse(version) is None :
+        if Version.parse(version) is None:
             return "version isn't semVer"
-    
+
     @staticmethod
-    def rule_entrypoint_exists(manifest : dict, mod_dir : Path) -> None|str:
+    def rule_entrypoint_exists(manifest: dict, mod_dir: Path) -> None | str:
         """
-return entrypoint errors
+        return entrypoint errors
         """
-        if "entrypoint" not in manifest :
+        if "entrypoint" not in manifest:
             return "miss entrypoint"
         entrypoint = mod_dir / Path(manifest["entrypoint"])
-        if not entrypoint.exists() :
+        if not entrypoint.exists():
             return f"{entrypoint} don't exist"
-    
+
     @staticmethod
-    def rule_type_valid(manifest : dict) -> None|str:
+    def rule_type_valid(manifest: dict) -> None | str:
         """
-return type errors
+        return type errors
         """
-        if "type" not in manifest :
+        if "type" not in manifest:
             return "miss type"
         type = manifest["type"]
-        if type not in MOD_TYPES :
+        if type not in MOD_TYPES:
             return f"{type} type don't exist"
-    
+
     @staticmethod
-    def rule_priority_int(manifest : dict) -> None|str:
+    def rule_priority_int(manifest: dict) -> None | str:
         """
-return priority errors
+        return priority errors
         """
-        if "priority" not in manifest :
+        if "priority" not in manifest:
             return "miss priority"
         priority = manifest["priority"]
-        if not isinstance(priority, int) :
+        if not isinstance(priority, int):
             return "priority isn't int"
-        
+
     @staticmethod
-    def rule_requires_dict(manifest : dict) -> None|str:
+    def rule_requires_dict(manifest: dict) -> None | str:
         """
-return dependencies errors
+        return dependencies errors
         """
-        if "requires" not in manifest :
+        if "requires" not in manifest:
             return "miss requires"
         requires = manifest["requires"]
-        if not isinstance(requires, dict) :
+        if not isinstance(requires, dict):
             return "requires isn't dict"
         # for i, j in requires.items() :
         #     if not isinstance(i, str) :
         #         return "requires's key isn't str"
-        
+
     @staticmethod
-    def rule_conflicts_dict(manifest : dict) -> None|str:
+    def rule_conflicts_dict(manifest: dict) -> None | str:
         """
-return conflict errors 
+        return conflict errors
         """
-        if "conflicts" not in manifest :
+        if "conflicts" not in manifest:
             return "miss conflicts"
         conflicts = manifest["conflicts"]
-        if not isinstance(conflicts , dict) :
+        if not isinstance(conflicts, dict):
             return "conflicts isn't dict"
-        
+
     @staticmethod
-    def rule_permissions_list(manifest : dict)  -> None|str:
+    def rule_permissions_list(manifest: dict) -> None | str:
         """
-return permissions errors
+        return permissions errors
         """
-        if "permissions" not in manifest :
+        if "permissions" not in manifest:
             return None
         permissions = manifest["permissions"]
-        if not isinstance(permissions , list) :
+        if not isinstance(permissions, list):
             return "permissions isn't list"
 
     @staticmethod
-    def validate(manifest : dict, mod_dir : Path) -> list :
+    def validate(manifest: dict, mod_dir: Path) -> list:
         """
-return errors list from manifest
+        return errors list from manifest
         """
         errors = [
-        ManifestValidator.rule_name_format(manifest),
-        ManifestValidator.rule_version_semver(manifest),
-        ManifestValidator.rule_entrypoint_exists(manifest, mod_dir),
-        ManifestValidator.rule_type_valid(manifest),
-        ManifestValidator.rule_priority_int(manifest),
-        ManifestValidator.rule_requires_dict(manifest),
-        ManifestValidator.rule_conflicts_dict(manifest),
-        ManifestValidator.rule_permissions_list(manifest)
+            ManifestValidator.rule_name_format(manifest),
+            ManifestValidator.rule_version_semver(manifest),
+            ManifestValidator.rule_entrypoint_exists(manifest, mod_dir),
+            ManifestValidator.rule_type_valid(manifest),
+            ManifestValidator.rule_priority_int(manifest),
+            ManifestValidator.rule_requires_dict(manifest),
+            ManifestValidator.rule_conflicts_dict(manifest),
+            ManifestValidator.rule_permissions_list(manifest),
         ]
         return [error for error in errors if error is not None]
 
-class ManifestProcessor :
+
+class ManifestProcessor:
     @staticmethod
-    def store(mod_name : str, manifest : dict, mod_storage : ModStorage, errors : list) -> None :
+    def store(
+        mod_name: str, manifest: dict, mod_storage: ModStorage, errors: list
+    ) -> None:
         """
-store manifest in mod_storage
-parse version in Version object
+        store manifest in mod_storage
+        parse version in Version object
         """
-        if errors :
+        if errors:
             mod_storage.states[mod_name] = "disable"
             mod_storage.errors[mod_name] = errors
             return
-        if "active" in manifest :
-            if isinstance(manifest["active"], bool) :
-                mod_storage.states[mod_name] = "enable" if manifest["active"] else "disable"
-            elif isinstance(manifest["active"], str) :
-                if manifest["active"] in {"inactive", "off", "disable"} :
+        if "active" in manifest:
+            if isinstance(manifest["active"], bool):
+                mod_storage.states[mod_name] = (
+                    "enable" if manifest["active"] else "disable"
+                )
+            elif isinstance(manifest["active"], str):
+                if manifest["active"] in {"inactive", "off", "disable"}:
                     mod_storage.states[mod_name] = "disable"
-                else :
+                else:
                     mod_storage.states[mod_name] = "enable"
-        else :
+        else:
             mod_storage.states[mod_name] = "enable"
         mod_storage.errors[mod_name] = errors
         parsed_version = Version.parse(manifest["version"])
         manifest["version"] = parsed_version
         for dep, constraint in manifest["requires"].items():
             constraint = ConstraintParser.parse(constraint)
-            if constraint is None :
+            if constraint is None:
                 continue
             manifest["requires"][dep] = constraint
         for dep, constraint in manifest["conflicts"].items():
             constraint = ConstraintParser.parse(constraint)
-            if constraint is None :
+            if constraint is None:
                 continue
             manifest["conflicts"][dep] = constraint
         mod_storage.manifests[mod_name] = deepcopy(manifest)

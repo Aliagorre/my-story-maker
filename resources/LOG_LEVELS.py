@@ -1,3 +1,5 @@
+# resources/LOG_LEVELS.py
+
 CRITICAL = "CRITICAL"
 WARNING = "WARNING"
 DEBUG = "DEBUG"

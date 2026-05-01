@@ -5,15 +5,15 @@ from heapq import heappop, heappush
 
 from core.__mod_storage import ModStorage
 from core.__version import ConstraintResolver
-from EVENTS import MOD_CONFLICT, MOD_DEPENDENCY_ERROR
-from LOG_LEVELS import DEBUG
+from resources.EVENTS import MOD_CONFLICT, MOD_DEPENDENCY_ERROR
+from resources.LOG_LEVELS import DEBUG
 
 
 class DependencyGraphBuilder:
     @staticmethod
     def build(mod_storage: ModStorage) -> dict:
         """
-Return dependencies graph
+        Return dependencies graph
         """
         graph = {}
         for mod, manifest in mod_storage.manifests.items():
@@ -22,11 +22,12 @@ Return dependencies graph
         mod_storage.dependencies = graph
         return graph
 
+
 class DependencyChecker:
     @staticmethod
     def check(mod_storage: ModStorage, emit_error) -> None:
         """
-Disable mods if miss dependencies
+        Disable mods if miss dependencies
         """
         for mod in mod_storage.dependencies:
             if mod_storage.states.get(mod) == "disable":
@@ -35,43 +36,44 @@ Disable mods if miss dependencies
             for dep, constraints in requires.items():
                 if dep not in mod_storage.manifests:
                     mod_storage.states[mod] = "disable"
-                    emit_error(MOD_DEPENDENCY_ERROR, {
-                        "mod": mod,
-                        "missing": dep
-                    })
+                    emit_error(MOD_DEPENDENCY_ERROR, {"mod": mod, "missing": dep})
                     continue
                 if mod_storage.states.get(dep) == "disable":
                     mod_storage.states[mod] = "disable"
-                    emit_error(MOD_DEPENDENCY_ERROR, {
-                        "mod": mod,
-                        "disabled_dep": dep
-                    })
+                    emit_error(MOD_DEPENDENCY_ERROR, {"mod": mod, "disabled_dep": dep})
                     continue
                 if constraints == "*":
                     continue
                 if not isinstance(constraints, list):
                     mod_storage.states[mod] = "disable"
-                    emit_error(MOD_DEPENDENCY_ERROR, {
-                        "mod": mod,
-                        "dep": dep,
-                        "invalid_constraint_format": constraints
-                    })
+                    emit_error(
+                        MOD_DEPENDENCY_ERROR,
+                        {
+                            "mod": mod,
+                            "dep": dep,
+                            "invalid_constraint_format": constraints,
+                        },
+                    )
                     continue
                 dep_version = mod_storage.manifests[dep]["version"]
                 if not ConstraintResolver.satisfies(dep_version, constraints):
                     mod_storage.states[mod] = "disable"
-                    emit_error(MOD_DEPENDENCY_ERROR, {
-                        "mod": mod,
-                        "dep": dep,
-                        "constraint": constraints,
-                        "found": dep_version
-                    })
+                    emit_error(
+                        MOD_DEPENDENCY_ERROR,
+                        {
+                            "mod": mod,
+                            "dep": dep,
+                            "constraint": constraints,
+                            "found": dep_version,
+                        },
+                    )
+
 
 class ConflictChecker:
     @staticmethod
     def check(mod_storage: ModStorage, emit_error) -> None:
         """
-Disable mods if in conflict with other
+        Disable mods if in conflict with other
         """
         for mod in mod_storage.manifests:
             if mod_storage.states.get(mod) == "disable":
@@ -85,20 +87,25 @@ Disable mods if in conflict with other
                 target_version = mod_storage.manifests[target]["version"]
                 if ConstraintResolver.satisfies(target_version, constraints):
                     mod_storage.states[mod] = "disable"
-                    emit_error(MOD_CONFLICT, {
-                        "mod": mod,
-                        "conflict_with": target,
-                        "constraint": constraints
-                    })
+                    emit_error(
+                        MOD_CONFLICT,
+                        {
+                            "mod": mod,
+                            "conflict_with": target,
+                            "constraint": constraints,
+                        },
+                    )
+
 
 class CycleDetector:
     @staticmethod
     def detect(graph):
         """
-Return cycle dependencies
+        Return cycle dependencies
         """
-        state = {}  
+        state = {}
         cycles = set()
+
         def dfs(node, stack):
             if state.get(node) == "visiting":
                 if node in stack:
@@ -111,16 +118,18 @@ Return cycle dependencies
             for dep in graph.get(node, []):
                 dfs(dep, stack + [dep])
             state[node] = "visited"
+
         for node in graph:
             if state.get(node) is None:
                 dfs(node, [node])
         return cycles
 
+
 class PriorityTopoSorter:
     @staticmethod
     def sort(graph, mod_storage, active_mods) -> list:
         """
-Return list of mod ordered for loading.
+        Return list of mod ordered for loading.
         """
         # dep -> [mods qui en dépendent]
         adj = defaultdict(list)
@@ -129,7 +138,7 @@ Return list of mod ordered for loading.
         for mod in active_mods:
             for dep in graph.get(mod, []):
                 if dep in indegree:
-                    adj[dep].append(mod)   # dep → mod
+                    adj[dep].append(mod)  # dep → mod
                     indegree[mod] += 1
         # heap = ( -priority, name )
         heap = []
@@ -148,6 +157,7 @@ Return list of mod ordered for loading.
                     heappush(heap, (-prio, dependent))
         return order
 
+
 class DependencyModule:
     def __init__(self, log, emit_error):
         self.emit_error = emit_error
@@ -155,8 +165,8 @@ class DependencyModule:
 
     def run(self, mod_storage: ModStorage) -> None:
         """
-complete mod_storage.load_order 
-disable conflict mod and circular dependencies
+        complete mod_storage.load_order
+        disable conflict mod and circular dependencies
         """
         graph = DependencyGraphBuilder.build(mod_storage)
         DependencyChecker.check(mod_storage, self.emit_error)
@@ -167,8 +177,7 @@ disable conflict mod and circular dependencies
             self.log(DEBUG, f"cycle dependencies from {mod}")
             self.emit_error(MOD_DEPENDENCY_ERROR, {"cycle": mod})
         active_mods = [
-            m for m in mod_storage.manifests
-            if mod_storage.states.get(m) != "disable"
+            m for m in mod_storage.manifests if mod_storage.states.get(m) != "disable"
         ]
         final_order = PriorityTopoSorter.sort(graph, mod_storage, active_mods)
         mod_storage.load_order = final_order
