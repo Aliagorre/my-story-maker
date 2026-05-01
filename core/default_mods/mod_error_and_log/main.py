@@ -1,57 +1,148 @@
-from ressources.LOG_LEVELS import CRITICAL, DEBUG, ERROR, INFO, WARNING
+# core/default_mods/mod_error_and_log/main.py
+
+from resources.__handler import Handler
+from resources.LOG_LEVELS import ERROR, INFO
 
 
 class Mod:
+    MOD_NAME = "mod_error_and_log"
+
     def on_load(self, core):
         self.core = core
         core.register_service("logger", self)
 
-        core.subscribe("ENGINE_BOOT", self.on_engine_event)
-        core.subscribe("ENGINE_INIT", self.on_engine_event)
-        core.subscribe("ENGINE_READY", self.on_engine_event)
-        core.subscribe("ENGINE_SHUTDOWN", self.on_engine_event)
-        core.subscribe("ENGINE_ERROR", self.on_engine_error)
-        core.subscribe("ENGINE_FATAL_ERROR", self.on_engine_error)
+        # ── engine lifecycle ──────────────────────────────────────────────
+        # normal : toujours notifié, pas de raison de bloquer les autres
+        for event in ("ENGINE_BOOT", "ENGINE_INIT", "ENGINE_READY", "ENGINE_SHUTDOWN"):
+            core.subscribe(
+                event,
+                Handler(
+                    self._make_engine_handler(event),
+                    name=f"log_engine_{event.lower()}",
+                    priority=900,
+                    mode="normal",
+                    mod_name=self.MOD_NAME,
+                ),
+            )
 
-        core.subscribe("MOD_DISCOVERED", self.on_mod_event)
-        core.subscribe("MOD_LOADED", self.on_mod_event)
-        core.subscribe("MOD_INITIALIZED", self.on_mod_event)
-        core.subscribe("MOD_ERROR", self.on_mod_error)
+        for event in ("ENGINE_ERROR", "ENGINE_FATAL_ERROR"):
+            core.subscribe(
+                event,
+                Handler(
+                    self._make_engine_error_handler(event),
+                    name=f"log_engine_error_{event.lower()}",
+                    priority=900,
+                    mode="normal",
+                    mod_name=self.MOD_NAME,
+                ),
+            )
 
-        core.subscribe("LOG_EVENT", self.on_log_event)
+        # ── mod lifecycle ─────────────────────────────────────────────────
+        for event in ("MOD_DISCOVERED", "MOD_LOADED", "MOD_INITIALIZED"):
+            core.subscribe(
+                event,
+                Handler(
+                    self._make_mod_handler(event),
+                    name=f"log_mod_{event.lower()}",
+                    priority=900,
+                    mode="normal",
+                    mod_name=self.MOD_NAME,
+                ),
+            )
 
-    # --- service logger ---
-    def log(self, level, source, message):
-        # tout passe par LOG_EVENT
-        self.core.emit(
-            "LOG_EVENT", {"level": level, "source": source, "message": message}
+        core.subscribe(
+            "MOD_ERROR",
+            Handler(
+                self.on_mod_error,
+                name="log_mod_error",
+                priority=900,
+                mode="normal",
+                mod_name=self.MOD_NAME,
+            ),
         )
 
-    # --- handlers : ils utilisent le service, pas print() ---
-    def on_engine_event(self, event):
-        self.log(INFO, "core", event["name"])
+        # ── LOG_EVENT : deux handlers distincts ───────────────────────────
+        #
+        # 1. Écriture fichier — normal, prio haute : s'exécute toujours
+        #    avant qu'un shadow plus bas ne coupe le pipeline.
+        core.subscribe(
+            "LOG_EVENT",
+            Handler(
+                self.on_log_write_file,
+                name="log_write_file",
+                priority=900,
+                mode="normal",
+                mod_name=self.MOD_NAME,
+            ),
+        )
 
-    def on_mod_event(self, event):
-        payload = event["payload"]
-        mod = payload.get("mod", "?")
-        self.log(INFO, "mod_error_and_log", f"{event['name']} {mod}")
+        # 2. Affichage console basique — shadow, prio basse : shadowed par
+        #    mod_styled_error_and_log (prio 100) si ce mod est présent.
+        core.subscribe(
+            "LOG_EVENT",
+            Handler(
+                self.on_log_console_plain,
+                name="log_console_plain",
+                priority=10,
+                mode="shadow",
+                mod_name=self.MOD_NAME,
+            ),
+        )
 
-    def on_engine_error(self, event):
-        self.log(ERROR, "core", f"ENGINE_ERROR: {event['payload']}")
+    # ── service logger ────────────────────────────────────────────────────
+
+    def log(self, level, source, message):
+        self.core.emit(
+            "LOG_EVENT",
+            {
+                "level": level,
+                "source": source,
+                "message": message,
+            },
+        )
+
+    # ── handlers engine ───────────────────────────────────────────────────
+
+    def _make_engine_handler(self, event_name):
+        def handler(event):
+            self.log(INFO, "core", event_name)
+
+        handler.__name__ = f"on_{event_name.lower()}"
+        return handler
+
+    def _make_engine_error_handler(self, event_name):
+        def handler(event):
+            self.log(ERROR, "core", f"{event_name}: {event['payload']}")
+
+        handler.__name__ = f"on_{event_name.lower()}"
+        return handler
+
+    # ── handlers mod ─────────────────────────────────────────────────────
+
+    def _make_mod_handler(self, event_name):
+        def handler(event):
+            mod = event["payload"].get("mod", "?")
+            self.log(INFO, self.MOD_NAME, f"{event_name} {mod}")
+
+        handler.__name__ = f"on_{event_name.lower()}"
+        return handler
 
     def on_mod_error(self, event):
-        payload = event["payload"]
-        mod = payload.get("mod", "?")
-        self.log(ERROR, "mod_error_and_log", f"MOD_ERROR in {mod}")
+        mod = event["payload"].get("mod", "?")
+        self.log(ERROR, self.MOD_NAME, f"MOD_ERROR in {mod}")
 
-    def on_log_event(self, event):
-        payload = event["payload"]
-        level = payload["level"]
-        source = payload["source"]
-        message = payload["message"]
+    # ── handlers LOG_EVENT ────────────────────────────────────────────────
 
+    def on_log_write_file(self, event):
+        p = event["payload"]
         with open("engine.log", "a", encoding="utf-8") as f:
-            f.write(f"[{level}] [{source}] {message}\n")
+            f.write(f"[{p['level']}] [{p['source']}] {p['message']}\n")
+
+    def on_log_console_plain(self, event):
+        p = event["payload"]
+        print(f"[{p['level']}] [{p['source']}] {p['message']}")
+
+    # ── lifecycle hooks ───────────────────────────────────────────────────
 
     def on_init(self, core):
         pass
