@@ -1,169 +1,120 @@
-\# my-story-maker/README.md
+# StoryMaker V7
 
-# **StoryMaker V7 — Development Guidelines**
+A **narrative operating system** — a minimal, modular Python runtime for building and running any kind of interactive experience.
 
-StoryMaker is a modular storytelling engine built around a minimal, extensible core.
-Its architecture is designed to separate responsibilities clearly: the core handles orchestration, while features are implemented through mods.
+The core contains zero domain logic. Every feature (UI, scripting, adventure formats, editors, networking…) lives in a **mod**. The engine provides the scaffolding; mods do the rest.
 
 ---
 
-## **Project Structure**
+## Philosophy
+
+- **The core does as little as possible** — lifecycle, event routing, service sharing, dependency resolution.
+- **Everything that can be a mod must be a mod** — no hardcoded features.
+- **Mods are isolated** — they communicate through the EventBus and the Service Registry, never by importing each other.
+- **Errors never crash the engine** — faulty mods are disabled; the rest keeps running.
+
+---
+
+## Quick Start
+
+```bash
+git clone <repo>
+cd my-story-maker
+python main.py
+```
+
+Run the test suite:
+
+```bash
+python test.py
+```
+
+---
+
+## Project Structure
 
 ```
-/core/            # Engine core
-/mods/            # User and external mods
-/default_mods/    # Built-in essential mods
-/docs/            # Documentation
-/examples/        # Sample projects
-main.py           # Entry point
+/
+├── main.py                         # Engine entry point
+├── test.py                         # Test suite entry point
+├── core/
+│   ├── core_api.py                 # Public API exposed to mods
+│   ├── event_bus.py                # Global publish/subscribe bus
+│   ├── mod_loader.py               # Orchestrates the full mod lifecycle
+│   ├── service_registry.py         # Service registration and retrieval
+│   └── default_mods/
+│       ├── mod_core_engine/        # Engine identity mod
+│       └── mod_error_and_log/      # Logging + error events (priority 900)
+├── mods/
+│   └── default/
+│       ├── mod_styled_text/        # ANSI text styling service
+│       └── mod_styled_error_and_log/  # Coloured console output
+├── resources/
+│   ├── EVENTS.py                   # All registered event name constants
+│   ├── LOG_LEVELS.py               # Log level constants
+│   ├── MOD_TYPES.py                # Valid mod type constants
+│   └── __handler.py                # Handler wrapper with modes and priorities
+└── docs/
+    ├── README.md                   # ← you are here
+    ├── MAKE_MOD.md                 # How to build a mod (with examples)
+    └── DOCUMENTATION.md            # Core internals reference
 ```
 
 ---
 
-## **Core Principles**
-
-* **Minimalism** — The core does as little as possible
-* **Modularity** — Everything is a mod
-* **Predictability** — Explicit lifecycle and behavior
-* **Extensibility** — Easy to add, replace, or remove features
-* **Separation of concerns** — Core vs mods
-
----
-
-## **Core Responsibilities**
-
-The core is intentionally lightweight and unopinionated. It provides:
-
-* Logging (basic levels only)
-* Error handling and reporting
-* Mod loading and lifecycle management
-* Dependency resolution
-* Event system (EventBus)
-* Service registry
-* Permission system (design stage)
-* Public API for mods
-
-### **Lifecycle Overview**
+## Engine Lifecycle
 
 ```
 ENGINE_BOOT
-→ Load Mods
+  → Mod discovery (core/default_mods/, mods/, mods/default/)
+  → Manifest validation
+  → Dependency resolution + load order
+  → on_load() for each mod
 ENGINE_INIT
-ENGINE_READY
-→ Main Loop (tick)
+  → on_init() for each mod
+ENGINE_READY                  ← on_ready(event) fires here for all mods
+  → Main loop  (ENGINE_TICK every 100 ms)
 ENGINE_SHUTDOWN
+  → on_shutdown() in reverse load order
 ```
 
 ---
 
-## **Mod System**
+## Bundled Mods
 
-Mods extend the engine and implement all features.
+| Mod | Type | Service | Priority |
+|---|---|---|---|
+| `mod_error_and_log` | `core_default` | `logger` | 900 |
+| `mod_styled_text` | `core_default` | `styled_text` | 120 |
+| `mod_styled_error_and_log` | `extension` | — | 110 |
 
-### **Manifest Requirements**
+---
 
-Each mod must define a manifest (JSON or YAML):
-
-* `name`
-* `version` (SemVer)
-* `requires`
-* `conflicts`
-* `priority`
-* `permissions`
-* `type`
-* `entrypoint`
-
-### **Lifecycle Hooks**
+## Core API (quick reference)
 
 ```python
-on_load()
-on_init()
-on_ready()
-on_shutdown()
+# Events
+core.emit("MY_EVENT", {"key": "value"})
+core.subscribe("ENGINE_READY", my_handler)
+
+# Services
+core.register_service("my_service", MyService())
+service = core.get_service("my_service")
+
+# Mods & manifests
+instance = core.get_mod("mod_name")
+manifest = core.get_manifest("mod_name")
+all_mods = core.get_all_mods()
+
+# Logging
+core.log("INFO", "message")
 ```
 
----
-
-## **Core Mods (`/core/default_mods/`)**
-
-These are required for a usable system.
-
-| Mod                     | Responsibility                 |
-| ----------------------- | ------------------------------ |
-| `mod_error_and_log`     | Error handling and log display |
-| `mod_cmd`               | CLI interface                  |
-| `mod_styled_text`       | Text styling                   |
-| `mod_ui`                | Terminal UI                    |
-| `mod_mod_manager`       | Mod management                 |
-| `mod_file_system`       | File access                    |
-| `mod_script_engine`     | Script execution               |
-| `mod_adventure_manager` | Adventure loading              |
-| `mod_base_adventure`    | Example adventure              |
+Full reference → [`DOCUMENTATION.md`](DOCUMENTATION.md)  
+Building a mod → [`MAKE_MOD.md`](MAKE_MOD.md)
 
 ---
 
-## **Default Mods (`/mods/default/`)**
+## License
 
-Optional but recommended for end users.
-
-* Graph editor
-* Condition engine
-* Inventory system
-* Character system
-* Quest system
-* Save/load system
-* Graphical UI (Pygame)
-* Networking (multiplayer)
-
----
-
-## **Core API (Simplified)**
-
-```python
-core.emit(event, payload)
-core.subscribe(event, callback)
-
-core.register_service(name, service)
-core.get_service(name)
-
-core.get_mod(name)
-core.get_manifest(name)
-
-core.log(level, message)
-```
-
----
-
-## **Development Standards**
-
-* Python: **PEP 8 + internal conventions**
-* Versioning: **Strict SemVer**
-* Clear separation between core and mods
-* No direct access between mods (use services)
-
----
-
-## **Testing Strategy**
-
-* Core: unit tests
-* Core mods: integration tests
-* Default mods: functional tests
-
----
-
-## **Future Extensions** 
-
-* Mod marketplace (My dream)
-* AI assistant integration (My friend's dream)
-* Analytics tools 
-* Audio engine
-
----
-
-## **Getting Started**
-
-1. Clone the repository
-2. Run `main.py`
-3. Explore `/examples/`
-4. Create your first mod
-
+MIT
