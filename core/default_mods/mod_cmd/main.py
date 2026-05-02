@@ -1,7 +1,5 @@
 # core/default_mods/mod_cmd/main.py
 
-import os
-import signal
 import threading
 from dataclasses import dataclass
 from typing import Callable, Optional

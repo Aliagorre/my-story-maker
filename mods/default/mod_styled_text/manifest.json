@@ -2,7 +2,7 @@
     "name": "mod_styled_text",
     "version": "1.0.0",
     "entrypoint": "main.py",
-    "type": "core_default",
+    "type": "extension",
     "priority": 120,
     "requires": {},
     "conflicts": {},

@@ -1,8 +1,8 @@
 {
-    "name": "core_engine",
+    "name": "mod_core_engine",
     "version": "7.1.0",
     "entrypoint": "core_engine.py",
-    "type": "core",
+    "type": "core_engine",
     "priority": 0,
     "requires": {},
     "conflicts": {},
