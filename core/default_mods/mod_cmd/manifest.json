@@ -1,6 +1,6 @@
 {
     "name": "mod_cmd",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "core_default",
     "priority": 100,
     "entrypoint": "main.py",

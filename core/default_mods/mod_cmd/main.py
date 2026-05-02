@@ -537,13 +537,8 @@ class CmdInterface:
         # Consumed all args navigating directories → show node listing
         self._help.print_node(node, path)
 
-    def _cmd_quit(self, _args: list[str]) -> None:
-        """
-        Send SIGINT to the main thread so main.py's KeyboardInterrupt handler
-        triggers mod_loader.shutdown() cleanly.
-        """
-        self._help.print_info("Shutting down…")
-        os.kill(os.getpid(), signal.SIGINT)
+    def _cmd_quit(self, _args):
+        self._core.shutdown_event.set()
 
     def _cmd_clear(self, _args: list[str]) -> None:
         # ANSI: erase entire screen + move cursor to top-left

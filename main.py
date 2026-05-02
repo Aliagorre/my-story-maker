@@ -78,7 +78,7 @@ core._mod_storage = mod_loader.mod_storage  # type:ignore
 mod_loader.load_all()
 
 try:
-    while True:
+    while not core.shutdown_event.is_set():
         event_bus.emit(
             {
                 "name": ENGINE_TICK,
@@ -88,5 +88,5 @@ try:
             }
         )
         time.sleep(0.1)
-except KeyboardInterrupt:
+finally:
     mod_loader.shutdown()

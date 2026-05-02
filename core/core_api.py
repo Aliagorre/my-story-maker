@@ -1,5 +1,6 @@
 # core/core_api.py
 
+import threading
 import time
 from typing import Any
 
@@ -10,6 +11,8 @@ class CoreAPI:
     Mods receive a CoreAPI instance in every lifecycle hook and must use it
     instead of importing engine internals directly.
     """
+
+    shutdown_event = threading.Event()
 
     def __init__(self, event_bus, service_registry, mod_storage, log):
         self._event_bus = event_bus
