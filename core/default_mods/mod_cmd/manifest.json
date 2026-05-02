@@ -1,0 +1,17 @@
+{
+    "name": "mod_cmd",
+    "version": "1.0.0",
+    "type": "core_default",
+    "priority": 100,
+    "entrypoint": "main.py",
+    "requires": {
+        "mod_error_and_log": ">=1.0.0"
+    },
+    "conflicts": {},
+    "permissions": [
+        "ui"
+    ],
+    "description": "Command-line interface with nested namespaces, tab-completion, and built-in help.",
+    "author": "AnieT",
+    "license": "MIT"
+}
