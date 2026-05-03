@@ -19,7 +19,7 @@ The core contains zero domain logic. Every feature lives in a **mod**. The engin
 
 ```bash
 git clone <repo>
-cd storymaker-v7
+cd my-story-maker
 python main.py
 ```
 
