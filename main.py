@@ -1,92 +1,47 @@
 # main.py
 
-import time
+# main.py
+import asyncio
+from pathlib import Path
 
-from core.core_api import CoreAPI
 from core.event_bus import EventBus
-from core.mod_loader import ModLoader
-from core.service_registry import ServiceRegistry
-from resources.EVENTS import ENGINE_TICK, LOG_EVENT
+from core.mod_loader import ModLoader, ModStorage
 
-event_bus = EventBus(
-    log=lambda level, message: event_bus.emit(
+
+async def main():
+    """Boot the engine, run the command loop, then shut down cleanly."""
+    event_bus = EventBus()
+    mod_storage = ModStorage()
+    loader = ModLoader(Path(__file__).parent / "mods", event_bus, mod_storage)
+    await loader.load_all()
+    event_bus.emit(
         {
-            "name": LOG_EVENT,
-            "source": "core",
-            "payload": {"level": level, "message": message, "source": "core"},
-            "timestamp": int(time.time()),
+            "name": "ENGINE_READY",
+            "payload": {},
+            "source": "core_engine",
+            "timestamp": 0,
         }
-    ),
-    emit_error=lambda e, p: event_bus.emit(
-        {"name": e, "source": "core", "payload": p, "timestamp": int(time.time())}
-    ),
-)
+    )
+    while True:
+        try:
+            line = input("> ")
+        except (EOFError, KeyboardInterrupt):
+            break
+        if line.strip():
+            event_bus.emit(
+                {
+                    "name": "COMMAND_INPUT",
+                    "payload": {"raw": line},
+                    "source": "core_engine",
+                    "timestamp": 0,
+                }
+            )
+    await loader.shutdown_all()
 
-service_registry = ServiceRegistry(
-    log=lambda level, message: event_bus.emit(
-        {
-            "name": LOG_EVENT,
-            "source": "core",
-            "payload": {"level": level, "message": message, "source": "core"},
-            "timestamp": int(time.time()),
-        }
-    ),
-    emit_error=lambda e, p: event_bus.emit(
-        {"name": e, "source": "core", "payload": p, "timestamp": int(time.time())}
-    ),
-)
 
-core = CoreAPI(
-    event_bus=event_bus,
-    service_registry=service_registry,
-    mod_storage=None,
-    log=lambda level, message: event_bus.emit(
-        {
-            "name": LOG_EVENT,
-            "source": "core",
-            "payload": {"level": level, "message": message, "source": "core"},
-            "timestamp": int(time.time()),
-        }
-    ),
-)
-
-mod_loader = ModLoader(
-    core=core,
-    log=lambda level, message: event_bus.emit(
-        {
-            "name": LOG_EVENT,
-            "source": "core",
-            "payload": {"level": level, "message": message, "source": "core"},
-            "timestamp": int(time.time()),
-        }
-    ),
-    emit=lambda name, payload: event_bus.emit(
-        {
-            "name": name,
-            "source": "core",
-            "payload": payload,
-            "timestamp": int(time.time()),
-        }
-    ),
-    emit_error=lambda e, p: event_bus.emit(
-        {"name": e, "source": "core", "payload": p, "timestamp": int(time.time())}
-    ),
-)
-
-core._mod_storage = mod_loader.mod_storage  # type:ignore
-
-mod_loader.load_all()
-
-try:
-    while not core.shutdown_event.is_set():
-        event_bus.emit(
-            {
-                "name": ENGINE_TICK,
-                "source": "core",
-                "payload": {},
-                "timestamp": int(time.time()),
-            }
-        )
-        time.sleep(0.1)
-finally:
-    mod_loader.shutdown()
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print()  # retour à la ligne propre
+        pass  # Ctrl+C: suppress asyncio's re-raised KeyboardInterrupt
