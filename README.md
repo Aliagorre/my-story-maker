@@ -2,16 +2,16 @@
 
 A **narrative operating system** — a minimal, modular Python runtime for building and running any kind of interactive experience.
 
-The core contains zero domain logic. Every feature (UI, scripting, adventure formats, editors, networking…) lives in a **mod**. The engine provides the scaffolding; mods do the rest.
+The core contains zero domain logic. Every feature lives in a **mod**. The engine provides lifecycle management, event routing, and dependency resolution; mods do everything else.
 
 ---
 
 ## Philosophy
 
-- **The core does as little as possible** — lifecycle, event routing, service sharing, dependency resolution.
+- **The core does as little as possible** — lifecycle, event routing, mod loading, dependency resolution.
 - **Everything that can be a mod must be a mod** — no hardcoded features.
-- **Mods are isolated** — they communicate through the EventBus and the Service Registry, never by importing each other.
-- **Errors never crash the engine** — faulty mods are disabled; the rest keeps running.
+- **Mods are isolated** — they communicate through the EventBus, never by importing each other.
+- **Errors never crash the engine** — faulty mods are skipped; the rest keep running.
 
 ---
 
@@ -19,7 +19,7 @@ The core contains zero domain logic. Every feature (UI, scripting, adventure for
 
 ```bash
 git clone <repo>
-cd my-story-maker
+cd storymaker-v7
 python main.py
 ```
 
@@ -40,24 +40,9 @@ python test.py
 ├── core/
 │   ├── core_api.py                 # Public API exposed to mods
 │   ├── event_bus.py                # Global publish/subscribe bus
-│   ├── mod_loader.py               # Orchestrates the full mod lifecycle
-│   ├── service_registry.py         # Service registration and retrieval
-│   └── default_mods/
-│       ├── mod_core_engine/        # Engine identity mod
-│       └── mod_error_and_log/      # Logging + error events (priority 900)
-├── mods/
-│   └── default/
-│       ├── mod_styled_text/        # ANSI text styling service
-│       └── mod_styled_error_and_log/  # Coloured console output
-├── resources/
-│   ├── EVENTS.py                   # All registered event name constants
-│   ├── LOG_LEVELS.py               # Log level constants
-│   ├── MOD_TYPES.py                # Valid mod type constants
-│   └── __handler.py                # Handler wrapper with modes and priorities
-└── docs/
-    ├── README.md                   # ← you are here
-    ├── MAKE_MOD.md                 # How to build a mod (with examples)
-    └── DOCUMENTATION.md            # Core internals reference
+│   └── mod_loader.py               # Mod discovery, loading, and lifecycle
+└── mods/
+    └── default/                    # Standard optional mods
 ```
 
 ---
@@ -65,52 +50,53 @@ python test.py
 ## Engine Lifecycle
 
 ```
-ENGINE_BOOT
-  → Mod discovery (core/default_mods/, mods/, mods/default/)
-  → Manifest validation
-  → Dependency resolution + load order
-  → on_load() for each mod
-ENGINE_INIT
-  → on_init() for each mod
-ENGINE_READY                  ← on_ready(event) fires here for all mods
-  → Main loop  (ENGINE_TICK every 100 ms)
-ENGINE_SHUTDOWN
-  → on_shutdown() in reverse load order
+python main.py
+  → EventBus and ModStorage created
+  → ModLoader.load_all()
+      → Mod discovery    (scans mods/)
+      → Manifest parsing + validation
+      → Dependency and conflict checks
+      → Topological load order computed
+      → on_load(core)    for each mod in order
+      → on_init(core)    for each mod in order
+      → on_ready(core)   for each mod in order
+  → ENGINE_READY emitted on the bus
+  → Input loop: each line emits COMMAND_INPUT
+  → Ctrl+C / EOF
+      → ModLoader.shutdown_all()
+          → on_shutdown(core) in reverse order
 ```
-
----
-
-## Bundled Mods
-
-| Mod | Type | Service | Priority |
-|---|---|---|---|
-| `mod_error_and_log` | `core_default` | `logger` | 900 |
-| `mod_styled_text` | `core_default` | `styled_text` | 120 |
-| `mod_styled_error_and_log` | `extension` | — | 110 |
 
 ---
 
 ## Core API (quick reference)
 
+The `core` object passed to every hook:
+
 ```python
 # Events
 core.emit("MY_EVENT", {"key": "value"})
-core.subscribe("ENGINE_READY", my_handler)
+core.subscribe("MY_EVENT", my_callback)
+core.get_event_bus()               # direct access to the EventBus
 
-# Services
-core.register_service("my_service", MyService())
-service = core.get_service("my_service")
-
-# Mods & manifests
+# Mod introspection
 instance = core.get_mod("mod_name")
 manifest = core.get_manifest("mod_name")
-all_mods = core.get_all_mods()
+enabled  = core.get_all_enabled_mods()   # list of enabled mod names
+all_mods = core.get_all_mods()           # list of all known mod names
 
 # Logging
-core.log("INFO", "message")
+core.log("INFO", "message")        # emits LOG_EVENT
+
+# Version
+core.get_core_version()            # string, e.g. "7.0.0"
+
+# Advanced patching (use with care)
+core.override("mod_name.attr", new_value)
+core.extend("mod_name.exports", {"key": fn})
 ```
 
-Full reference → [`DOCUMENTATION.md`](DOCUMENTATION.md)  
+Full reference → [`DOCUMENTATION.md`](DOCUMENTATION.md)
 Building a mod → [`MAKE_MOD.md`](MAKE_MOD.md)
 
 ---
