@@ -1,6 +1,6 @@
 # Making a Mod — StoryMaker V7
 
-This guide covers everything you need to build a mod, from the minimal skeleton to advanced handler patterns.
+Everything you need to build a mod, from a minimal skeleton to event handling and mod interaction.
 
 ---
 
@@ -39,16 +39,16 @@ class Mod:
     def on_init(self, core):
         pass
 
-    def on_ready(self, event):          # NOTE: receives the ENGINE_READY event dict, not core
+    def on_ready(self, core):
         core.log("INFO", "Hello from mod_hello!")
 
     def on_shutdown(self, core):
         pass
 ```
 
-> **`on_ready` signature differs from the other hooks.** It receives the `ENGINE_READY` event dict because it is wired as an event handler by the loader. Store `core` in `on_load` if you need it later.
+All four lifecycle methods **must exist** and be callable — the loader checks for them. All four receive `core` as their only argument.
 
-The engine discovers the mod automatically — no registration needed.
+The engine discovers the mod automatically; no registration is needed.
 
 ---
 
@@ -56,30 +56,22 @@ The engine discovers the mod automatically — no registration needed.
 
 ```json
 {
-    "name":        "mod_example",       // required — mod_<snake_case>
-    "version":     "1.2.0",             // required — strict SemVer
+    "name":        "mod_example",       // required — must start with mod_
+    "version":     "1.2.0",             // required — strict SemVer MAJOR.MINOR.PATCH
     "type":        "extension",         // required — see table below
     "priority":    50,                  // required — integer, higher loads earlier
-    "entrypoint":  "main.py",           // required — path relative to mod dir
+    "entrypoint":  "main.py",           // required — path relative to mod directory
 
-    "requires": {                       // required (can be empty)
-        "mod_script_engine": ">=1.0.0,<2.0.0"
+    "requires": {                       // required (may be empty)
+        "mod_other": ">=1.0.0,<2.0.0"
     },
-    "conflicts": {                      // required (can be empty)
-        "mod_old_engine": "*"
+    "conflicts": {                      // required (may be empty)
+        "mod_legacy": "*"
     },
 
-    "permissions": [                    // optional
-        "filesystem_read",
-        "filesystem_write",
-        "network",
-        "ui",
-        "spawn_process",
-        "script_eval",
-        "unsafe"
-    ],
+    "permissions": [],                  // optional list
 
-    "active":      true,                // optional — false / "off" / "disable" to disable
+    "active": true,                     // optional — false / "off" / "disable" disables mod
     "description": "Short description.",
     "author":      "Your Name",
     "license":     "MIT"
@@ -88,12 +80,12 @@ The engine discovers the mod automatically — no registration needed.
 
 #### Mod types
 
-| Type | Where | Description |
+| Type | Location | Description |
 |---|---|---|
-| `core_engine` | reserved | Core engine only |
+| `core_engine` | reserved | Core identity mod |
 | `core_default` | `core/default_mods/` | Required for the engine to run |
 | `default` | `core/default_mods/` | Bundled, non-critical |
-| `extension` | `mods/default/` or external | Standard optional mod |
+| `extension` | `mods/default/` | Standard optional mod |
 | `experimental` | anywhere | Unstable / work-in-progress |
 
 #### Version constraints (in `requires` / `conflicts`)
@@ -110,251 +102,148 @@ The engine discovers the mod automatically — no registration needed.
 
 ## 3. Lifecycle Hooks
 
+All hooks are called with `core` as the only argument:
+
 ```
-on_load(self, core)     → after import; subscribe to events, register services
-on_init(self, core)     → after all mods are loaded; use other mods' services
-on_ready(self, event)   → ENGINE_READY fired; start UI, threads, adventures
-on_shutdown(self, core) → ENGINE_SHUTDOWN; release resources, save state
+on_load(self, core)     → mod is imported; subscribe to events here
+on_init(self, core)     → all mods are loaded; access other mod instances here
+on_ready(self, core)    → engine is about to start its input loop; start your features here
+on_shutdown(self, core) → engine is stopping; save state, release resources
 ```
 
-All hooks are optional, but all four methods **must exist** and be callable — the loader validates this at import time.
+Hooks may be sync or async — the loader handles both transparently:
 
-### Storing core for later use
+```python
+async def on_load(self, core):
+    await some_async_setup()
+```
 
-Because `on_ready` does not receive `core`, store it in `on_load`:
+If a hook is missing the loader simply skips it (though all four should exist per the manifest contract).
+
+---
+
+## 4. Subscribing to Events
+
+Pass any callable to `core.subscribe`. The EventBus calls it with the event dict whenever the event fires.
 
 ```python
 def on_load(self, core):
-    self.core = core
-    core.subscribe("ENGINE_READY", self._on_ready)
+    core.subscribe("ENGINE_TICK", self._on_tick)
 
-def _on_ready(self, event):
-    # self.core is available here
-    self.core.log("INFO", "ready!")
+def _on_tick(self, event):
+    # event is {"name": ..., "source": ..., "payload": ..., "timestamp": ...}
+    pass
+```
 
-def on_ready(self, event):
-    pass  # still required, but can be a no-op
+Subscriptions should be made in `on_load` so they are in place before `on_init` and `on_ready` run.
+
+### Event structure
+
+Every event is a plain dict:
+
+```python
+{
+    "name":      "ENGINE_TICK",   # UPPER_CASE string
+    "source":    "core_engine",   # who emitted it
+    "payload":   {},              # always a dict
+    "timestamp": 1234567890.0     # float, seconds since epoch
+}
 ```
 
 ---
 
-## 4. Emitting and Subscribing to Events
-
-### Emit
+## 5. Emitting Events
 
 ```python
-core.emit("ADVENTURE_STARTED", {"adventure_id": "demo"})
+core.emit("MY_EVENT", {"key": "value"})
 ```
 
-Only events declared in `resources/EVENTS.py` are accepted. To add custom events you must register them:
-
-```python
-core.get_event_bus().register("MY_CUSTOM_EVENT")
-core.emit("MY_CUSTOM_EVENT", {"data": 42})
-```
-
-### Subscribe (simple)
-
-Passing a plain callable wraps it automatically as a `normal` handler at priority 0:
+Only events that have been registered on the EventBus are accepted. Built-in events live in `resources/EVENTS.py`. To emit a custom event, register it first:
 
 ```python
 def on_load(self, core):
-    core.subscribe("ENGINE_TICK", self._tick)
+    core.get_event_bus().register("MY_CUSTOM_EVENT")
 
-def _tick(self, event):
-    pass   # called every tick
+def on_ready(self, core):
+    core.emit("MY_CUSTOM_EVENT", {"data": 42})
 ```
 
-### Subscribe with a Handler object
-
-Import `Handler` for full control over priority and mode:
-
-```python
-from resources.__handler import Handler
-
-def on_load(self, core):
-    core.subscribe(
-        "LOG_EVENT",
-        Handler(
-            self._handle_log,
-            name="my_log_handler",
-            priority=50,        # higher = runs first
-            mode="normal",      # see section 5
-            mod_name="mod_hello",
-        ),
-    )
-```
+`register` returns `False` (and does nothing) if the name is already registered, so it is safe to call in `on_load`.
 
 ---
 
-## 5. Handler Modes
-
-The EventBus runs handlers in **priority order** (highest first). Each handler's `mode` controls what happens after it runs.
-
-| Mode | Behaviour on success | Behaviour on exception |
-|---|---|---|
-| `normal` | pipeline continues | exception caught + logged, pipeline continues |
-| `shadow` | **pipeline stops** | exception caught + logged, next handler runs (fallback) |
-| `override` | **pipeline stops** | exception caught + logged, pipeline still stops |
-| `chain` | handler controls continuation via `next()` | exception caught, pipeline stops |
-
-#### `shadow` — the fallback pattern
-
-`shadow` is used when a handler provides an enhanced version of a feature and should silently yield to the next handler on failure. The bundled logging system uses this:
-
-```
-log_write_file   (priority=900, normal)   → always writes to engine.log
-log_console_styled (priority=100, shadow) → styled output; stops here if styled_text is available
-log_console_plain  (priority=10,  shadow) → plain fallback; only reached if styled handler failed
-```
-
-A mod providing styled output:
+## 6. Logging
 
 ```python
-from resources.__handler import Handler
-
-def on_load(self, core):
-    core.subscribe(
-        "LOG_EVENT",
-        Handler(
-            self._styled_log,
-            name="my_styled_log",
-            priority=100,
-            mode="shadow",
-            mod_name="mod_hello",
-        ),
-    )
-
-def _styled_log(self, event):
-    styled = self.core.get_service("styled_text")
-    if styled is None:
-        raise RuntimeError("no styled_text")   # falls back to plain handler
-    p = event["payload"]
-    print(styled.style(f"[{p['level']}] {p['message']}", color="cyan"))
+core.log("INFO", "Mod started.")
+core.log("WARNING", "Something looks off.")
+core.log("ERROR", "Something failed.")
 ```
 
-#### `chain` — full pipeline control
-
-The handler receives an async `next()` callable as its second argument:
-
-```python
-async def _chain_handler(self, event, next):
-    print("before")
-    await next()          # call remaining handlers
-    print("after")
-```
-
-```python
-core.subscribe(
-    "ENGINE_TICK",
-    Handler(self._chain_handler, mode="chain", priority=200),
-)
-```
-
----
-
-## 6. Services
-
-Services let mods expose a stable API to other mods without direct imports.
-
-### Registering a service
-
-Register in `on_load` (or `on_init` if you depend on another service):
-
-```python
-class MyService:
-    def greet(self, name):
-        return f"Hello, {name}!"
-
-class Mod:
-    def on_load(self, core):
-        core.register_service("my_greeter", MyService())
-```
-
-Rules: name must be `snake_case`, a name can only be registered once.
-
-### Consuming a service
-
-```python
-def on_init(self, core):
-    greeter = core.get_service("my_greeter")
-    if greeter is None:
-        core.log("WARNING", "my_greeter not available")
-        return
-    print(greeter.greet("world"))
-```
-
-Always check for `None` — the service may not be loaded.
-
----
-
-## 7. Logging
-
-Emit a `LOG_EVENT` through the `logger` service provided by `mod_error_and_log`:
-
-```python
-def on_init(self, core):
-    logger = core.get_service("logger")
-    logger.log("INFO", "mod_hello", "Initialized.")
-    logger.log("WARNING", "mod_hello", "Something looks off.")
-    logger.log("ERROR", "mod_hello", "Something failed.")
-```
-
-Or use `core.log` for quick messages (source will be `"core"`):
-
-```python
-core.log("INFO", "quick message")
-```
+This emits a `LOG_EVENT` with the payload `{"level": ..., "message": ..., "context": {}}`. Any mod subscribed to `LOG_EVENT` will receive it.
 
 Log levels: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.
 
 ---
 
-## 8. Styled Text
-
-`mod_styled_text` exposes the `styled_text` service:
+## 7. Accessing Other Mods
 
 ```python
 def on_init(self, core):
-    self.styled = core.get_service("styled_text")
-
-def on_ready(self, event):
-    if self.styled:
-        print(self.styled.h1("My Mod"))
-        print(self.styled.style("Important", color="bright_red", styles=["bold"]))
-        print(self.styled.frame("Framed text", style="double"))
-        print(self.styled.bullet_list(["item one", "item two"]))
+    other = core.get_mod("mod_other")
+    if other is not None:
+        other.some_public_method()
 ```
 
-Available helpers: `style()`, `h1()`, `h2()`, `h3()`, `frame()`, `bullet_list()`, `numbered_list()`, `blockquote()`, `code()`, `indent()`.
+`get_mod` returns the live `Mod` instance, or `None` if the mod is not loaded. Use `on_init` for this — other mods are guaranteed to be loaded by then. Never import a mod's internals directly.
 
----
-
-## 9. Accessing Other Mods
-
-Prefer services over direct mod access. When you do need the mod instance:
+You can also inspect a mod's manifest:
 
 ```python
-other = core.get_mod("mod_other")
-if other is not None:
-    other.some_public_method()
+manifest = core.get_manifest("mod_other")
 ```
 
-Never import a mod's internals directly (`from mod_other.main import ...` is forbidden).
+And list all currently enabled mods:
+
+```python
+names = core.get_all_enabled_mods()   # ["mod_a", "mod_b", ...]
+```
 
 ---
 
-## 10. Full Example — `mod_counter`
+## 8. Exports
 
-A mod that counts ENGINE_TICK events and prints a styled report on shutdown.
+A mod can expose a dict of values via a module-level `exports` variable. Other mods can read it through `core.get_mod`:
 
+```python
+# mod_dice/main.py
+def roll(sides):
+    import random
+    return random.randint(1, sides)
+
+exports = {"roll": roll}
+
+class Mod:
+    def on_load(self, core): pass
+    def on_init(self, core): pass
+    def on_ready(self, core): pass
+    def on_shutdown(self, core): pass
 ```
-mods/default/mod_counter/
-├── manifest.json
-└── main.py
+
+```python
+# another mod
+def on_init(self, core):
+    dice = core.get_mod("mod_dice")
+    result = dice.exports["roll"](20)
 ```
 
-**manifest.json**
+---
+
+## 9. Full Example — `mod_counter`
+
+Counts `ENGINE_TICK` events and logs a report on shutdown.
+
+**`manifest.json`**
 
 ```json
 {
@@ -363,52 +252,29 @@ mods/default/mod_counter/
     "type": "extension",
     "priority": 40,
     "entrypoint": "main.py",
-    "requires": {
-        "mod_styled_text": ">=1.0.0"
-    },
+    "requires": {},
     "conflicts": {},
     "permissions": []
 }
 ```
 
-**main.py**
+**`main.py`**
 
 ```python
-from resources.__handler import Handler
-
-
 class Mod:
     def on_load(self, core):
         self.core = core
         self.ticks = 0
-
-        core.subscribe(
-            "ENGINE_TICK",
-            Handler(
-                self._on_tick,
-                name="counter_tick",
-                priority=10,
-                mode="normal",
-                mod_name="mod_counter",
-            ),
-        )
+        core.subscribe("ENGINE_TICK", self._on_tick)
 
     def on_init(self, core):
-        self.styled = core.get_service("styled_text")
-        self.logger = core.get_service("logger")
+        pass
 
-    def on_ready(self, event):
-        if self.logger:
-            self.logger.log("INFO", "mod_counter", "Counter started.")
+    def on_ready(self, core):
+        core.log("INFO", "Counter started.")
 
     def on_shutdown(self, core):
-        if self.styled:
-            report = self.styled.frame(
-                f"Total ticks: {self.ticks}", style="double"
-            )
-            print(report)
-        else:
-            print(f"Total ticks: {self.ticks}")
+        core.log("INFO", f"Total ticks counted: {self.ticks}")
 
     def _on_tick(self, event):
         self.ticks += 1
