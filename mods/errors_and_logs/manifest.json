@@ -10,6 +10,6 @@
         "filesystem_write"
     ],
     "description": "Base logging system: prints logs and writes them to engine.log.",
-    "author": "AnieT",
+    "author": "Anie-T",
     "license": "MIT"
 }
