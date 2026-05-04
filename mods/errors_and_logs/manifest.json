@@ -1,0 +1,15 @@
+{
+    "name": "mod_error_and_log",
+    "version": "1.0.0",
+    "type": "core_default",
+    "priority": 100,
+    "entrypoint": "main.py",
+    "requires": {},
+    "conflicts": {},
+    "permissions": [
+        "filesystem_write"
+    ],
+    "description": "Base logging system: prints logs and writes them to engine.log.",
+    "author": "AnieT",
+    "license": "MIT"
+}
