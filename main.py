@@ -43,5 +43,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print()  # retour à la ligne propre
+        print()
         pass  # Ctrl+C: suppress asyncio's re-raised KeyboardInterrupt

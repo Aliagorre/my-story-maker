@@ -3,12 +3,21 @@
 from time import time
 from typing import Callable, Dict, List
 
+DEFAULT_EVENTS = [
+    "LOG_EVENT",
+    "ERROR_EVENT",
+    "COMMAND_INPUT",
+    "ENGINE_READY",
+]
+
 
 class EventBus:
     """Central message broker. Mods emit and subscribe; the bus just routes."""
 
     def __init__(self):
-        self._handlers: Dict[str, List[Callable]] = {}
+        self._handlers: Dict[str, List[Callable]] = {
+            name: [] for name in DEFAULT_EVENTS
+        }
 
     def register(self, event_name: str):
         """Declare a new event. Must be called before any subscription is accepted."""
